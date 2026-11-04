@@ -6,16 +6,21 @@
 
 import type { FaqItem, Post } from "../content/types";
 import { authorBySlug, type Author, type SiteConfig } from "../site/schema";
-import { authorPath, indexPagePath, postPath } from "../seo/urls";
+import { authorPath, indexPagePath, postPathFor } from "../seo/urls";
 import { classer } from "../theme/classes";
 import type { ThemeConfig } from "../theme/schema";
 import { toIsoDate } from "../util";
 import { MarkdownBody, resolveBodyFormat } from "../content/markdown";
+import { LanguageSwitch, type LanguageSwitchEntry } from "./chrome";
 import { PaidPlacementCallout, showPaidPlacement } from "./disclosure";
 
-// The site shape the post page needs: authors for bylines, plus the optional
+// A site shape that can resolve a post's URL: its authors (for bylines) plus
+// the default `language` (a post in another language is served under /<lang>/).
+type PostListSite = Pick<SiteConfig, "authors" | "language">;
+
+// The site shape the post page needs: the list site plus the optional
 // sponsor-disclosure config (both null/off on a plain blog).
-type PostSite = Pick<SiteConfig, "authors" | "features" | "sponsor">;
+type PostSite = PostListSite & Pick<SiteConfig, "features" | "sponsor">;
 
 // The post body. The body string is either the publisher's article HTML or a
 // hand-written body. SECURITY: an HTML body is injected verbatim — it MUST be
@@ -62,7 +67,7 @@ export function PostList({
   classPrefix = "",
 }: {
   posts: readonly Post[];
-  site: Pick<SiteConfig, "authors">;
+  site: PostListSite;
   classPrefix?: string;
 }) {
   const c = classer(classPrefix);
@@ -72,7 +77,7 @@ export function PostList({
       {posts.map((post) => (
         <li key={post.slug}>
           <h2>
-            <a href={postPath(post.slug)}>{post.frontmatter.title}</a>
+            <a href={postPathFor(post, site.language)}>{post.frontmatter.title}</a>
           </h2>
           <Byline post={post} site={site} classPrefix={classPrefix} />
           {post.frontmatter.description ? <p className={c("excerpt")}>{post.frontmatter.description}</p> : null}
@@ -114,7 +119,7 @@ export function PostIndex({
   classPrefix = "",
 }: {
   posts: readonly Post[];
-  site: Pick<SiteConfig, "authors">;
+  site: PostListSite;
   theme: ThemeConfig;
   page: number;
   totalPages: number;
@@ -164,11 +169,26 @@ export function FaqBlock({
 
 // The post page. When the site runs the sponsor-disclosure layer and this post
 // features a paid brand, the paid-placement callout renders above the byline.
-export function PostArticle({ post, site, classPrefix = "" }: { post: Post; site: PostSite; classPrefix?: string }) {
+export function PostArticle({
+  post,
+  site,
+  languageSwitch = [],
+  classPrefix = "",
+}: {
+  post: Post;
+  site: PostSite;
+  // The post's live siblings in other languages (empty on a monolingual post).
+  // When non-empty, a "read in other languages" switch renders above the title.
+  languageSwitch?: readonly LanguageSwitchEntry[];
+  classPrefix?: string;
+}) {
   const c = classer(classPrefix);
   const fm = post.frontmatter;
   return (
     <article className={c("post")}>
+      {languageSwitch.length > 1 ? (
+        <LanguageSwitch entries={languageSwitch} ariaLabel="Read in another language" classPrefix={classPrefix} />
+      ) : null}
       {showPaidPlacement(site, fm) && site.sponsor ? (
         <PaidPlacementCallout
           paidBrands={fm.paidBrands}
@@ -220,7 +240,7 @@ export function AuthorProfile({
 }: {
   author: Author;
   posts: readonly Post[];
-  site: Pick<SiteConfig, "authors">;
+  site: PostListSite;
   classPrefix?: string;
 }) {
   const c = classer(classPrefix);

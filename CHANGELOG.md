@@ -8,6 +8,47 @@ All notable changes to the blog components package. Versions follow
 - **major** — anything a pinned repo must adapt to (a required key, a renamed export,
   a changed file layout, a changed visibility rule).
 
+## [0.4.0] — 2026-11-04
+
+Minor (0.x): multilingual publishing + rendering. A single-language blog that
+sets none of the new keys renders byte-identically to v0.3.1 (the captured
+`test/fixtures/v0_3_1-*` assert header + `themeCss`; the v0.2.0 fixtures still
+hold). The one contract change is the translation-family key (see below) —
+safe because no pinned repo carries the old key yet.
+
+- **Per-language routes.** A post whose `lang` is the site default stays at
+  `/posts/<slug>` (NO change). A post in any other language is served at
+  `/<lang>/posts/<slug>`, and each non-default language that has ≥1 post also
+  gets a `/<lang>/` index and a `/<lang>/feed.xml`. New helpers `postPathFor`,
+  `postUrlFor`, `langIndexPath`, `langFeedPath`; the default language is the
+  site config `language`.
+- **Translation families (`translationOf`).** New optional post frontmatter
+  key `translationOf` = the ROOT post's slug. A root carries none; each variant
+  points back at the root slug, so a post's family is every live post that
+  resolves to the same root slug. **Replaces the former `translationKey`** (a
+  shared opaque key on every member). New helpers `familyRootSlug`,
+  `translationFamily`, `postLang`, `isDefaultLang`, `nonDefaultLanguages`,
+  `languagesPresent`, `postsInLanguage`.
+- **hreflang + x-default.** `hreflangAlternates` now emits one alternate per
+  language in the family plus an `x-default` → the default-language version (or
+  the family root when no default-language sibling is live). `sitemapXml`
+  carries the matching `xhtml:link` alternates and the per-language index/feed
+  URLs; `rssXml` takes an optional `{ lang }` for a per-language feed.
+- **Direction.** New `dirForLang` / `isRtlLang` / `RTL_BASE_LANGS` (ar/he/fa/ur,
+  matched on the base subtag; extend the one array). `htmlAttributes(lang,
+  theme)` now sets `dir` from the page language and accepts a bare BCP-47 tag
+  (the `{ language }` object shape still works).
+- **Language switch (`nav_links` type `language_switch`).** New optional nav
+  entry `{ "type": "language_switch", "style": "pill"? }` renders the
+  `LanguageSwitch` component (label = language code uppercased, e.g. `ES`);
+  hidden when the site has a single language. Plain nav entries are unchanged
+  (they default to `type: "link"`). `SiteHeader` / `SiteShell` take a
+  `languageSwitch` prop; `PostArticle` takes one too (the post's siblings).
+- **Logo link target (`logo_href`).** New optional theme key: when set, the
+  header logo/brand link points there instead of `/` (validated exactly like a
+  nav href — `/`-relative or `https://` only; an external target gets
+  `rel="noopener"`). The aria-label stays `"<brand> home"`. Unset = `/`.
+
 ## 0.3.1
 
 - `bar` header: nav links are vertically centred with the logo and any pill link (44px tap targets).

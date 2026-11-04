@@ -85,7 +85,7 @@ export function parseFrontmatter(raw: Record<string, unknown>, slug: string): Po
     author: required(raw, "author", slug),
     authorSlug: required(raw, "authorSlug", slug),
     schemaVariant: POST_SCHEMA_VARIANTS.find((v): v is PostSchemaVariant => v === variant) ?? null,
-    translationKey: str(raw.translationKey),
+    translationOf: str(raw.translationOf),
     faqSchema: coerceObject(raw.faqSchema),
     faq: coerceFaq(raw.faq),
     coverImage,

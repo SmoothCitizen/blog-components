@@ -16,14 +16,19 @@
 //   publishAt       ISO-8601, required — the schedule gate. A post renders only
 //                   when status is "published" AND publishAt <= build time.
 //   updatedAt       ISO-8601, optional (dateModified, sitemap lastmod)
-//   lang            BCP-47, optional (defaults to the site language)
+//   lang            BCP-47, optional (defaults to the site language). A post
+//                   whose lang is the site default is served at /posts/<slug>;
+//                   any other language at /<lang>/posts/<slug>.
 //   author          string, required — byline name
 //   authorSlug      string, required — links to /authors/<slug> when that
 //                   author is listed in config/site.json
 //   schemaVariant   "Article" | "BlogPosting", optional (else the theme's)
-//   translationKey  string, optional — posts sharing a key are language
-//                   versions of one article; hreflang alternates are computed
-//                   at build time from the LIVE members only
+//   translationOf   string, optional — the slug of the ROOT post this one is a
+//                   language variant of. A ROOT post carries NO translationOf;
+//                   each of its variants points back at its slug, so the family
+//                   is everything that resolves to the same root slug. hreflang
+//                   alternates + the language switch are computed at build time
+//                   from the LIVE members only.
 //   faqSchema       object, optional — a schema.org FAQPage emitted as JSON-LD
 //                   (the visible FAQ block is already in the body)
 //   faq             [{question, answer}], optional — hand-authored FAQ; renders
@@ -68,7 +73,10 @@ export interface PostFrontmatter {
   author: string;
   authorSlug: string;
   schemaVariant: PostSchemaVariant | null;
-  translationKey: string | null;
+  // The slug of the ROOT post this is a language variant of; null on a root
+  // post (and on a monolingual post). Posts that resolve to the same root slug
+  // form one hreflang family. See ./languages.ts.
+  translationOf: string | null;
   faqSchema: Record<string, unknown> | null;
   faq: FaqItem[];
   coverImage: string | null;

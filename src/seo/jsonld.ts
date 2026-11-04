@@ -4,7 +4,7 @@
 import type { FaqItem, Post } from "../content/types";
 import type { Author, SiteConfig, SponsorConfig } from "../site/schema";
 import type { ThemeConfig } from "../theme/schema";
-import { absoluteUrl, authorUrl, postUrl } from "./urls";
+import { absoluteUrl, authorUrl, postUrlFor } from "./urls";
 
 const SCHEMA_CONTEXT = "https://schema.org";
 
@@ -67,7 +67,7 @@ export function postJsonLd(post: Post, site: SiteRef, theme: ThemeRef, author: A
   const fm = post.frontmatter;
   const person = personNode(site, author ?? { slug: fm.authorSlug, name: fm.author });
   const publisher = publisherNode(site, theme);
-  const url = postUrl(site, post.slug);
+  const url = postUrlFor(site, post, site.language);
   const variant = fm.schemaVariant ?? theme.schema_variant;
   // A "Review" post emits schema.org Review (per-item): the reviewed item is
   // the post's first paid brand, else the headline. Any other variant keeps

@@ -7,9 +7,9 @@ import type { Metadata } from "next";
 import type { HreflangAlternate, Post } from "../content/types";
 import type { SiteConfig } from "../site/schema";
 import type { ThemeConfig } from "../theme/schema";
-import { absoluteUrl, postPath } from "./urls";
+import { absoluteUrl, postPathFor } from "./urls";
 
-type SiteRef = Pick<SiteConfig, "canonical_hostname" | "description">;
+type SiteRef = Pick<SiteConfig, "canonical_hostname" | "description" | "language">;
 type ThemeRef = Pick<ThemeConfig, "brand_name" | "tagline">;
 
 export function siteMetadata(site: SiteRef, theme: ThemeRef): Metadata {
@@ -51,7 +51,7 @@ export function postMetadata(
   alternates: readonly HreflangAlternate[],
 ): Metadata {
   const fm = post.frontmatter;
-  const url = absoluteUrl(site, postPath(post.slug));
+  const url = absoluteUrl(site, postPathFor(post, site.language));
   const description = fm.description ?? theme.tagline ?? theme.brand_name;
   const image = fm.coverImage ? absoluteUrl(site, fm.coverImage) : null;
   return {

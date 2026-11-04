@@ -266,6 +266,14 @@ function optionalCss(theme: ThemeCssInput): string {
     );
   }
 
+  if ((theme.nav_links ?? []).some((l) => l.type === "language_switch")) {
+    parts.push(
+      `/* language switch (v0.4.0) */\n` +
+        `.site-nav .language-switch{display:inline-flex;gap:12px;align-items:center}\n` +
+        `.site-nav .language-switch [aria-current]{color:var(--muted);text-decoration:none}`,
+    );
+  }
+
   if (theme.logo_width) {
     parts.push(
       `/* explicit logo width (v0.3.0) */\n` +

@@ -85,6 +85,37 @@ omits them all renders byte-identically to v0.2.0.
 | `logo_width` | integer px, 60–320 | Header logo renders at this width with `height:auto`; unset keeps the default 40px height. |
 | `header_variant: "bar"` | enum value | Full-bleed header (logo left, nav right, surface-bg band, `--line` bottom border); the other three variants are unchanged. |
 
+### v0.4.0 keys — multilingual + logo link (all optional)
+
+A blog that sets none of these renders byte-identically to v0.3.1.
+
+| Key | Type | Notes |
+|---|---|---|
+| `logo_href` | `/`-relative or `https://` | Target for the header logo/brand link; unset = `/` (home). Validated like `nav_links.href` (`javascript:`/`data:`/`http:`/`//` rejected). An external `https://` target gets `rel="noopener"`. The link's aria-label stays `"<brand> home"`. |
+| `nav_links[].type: "language_switch"` | enum value | A nav entry that renders the language switcher (links/pill to the site's languages or a post's siblings) instead of a plain link. Carries no `label`/`href`. Hidden when the site has a single language. Plain entries default to `type: "link"` and are unchanged. |
+
+### Multilingual routing + frontmatter (v0.4.0)
+
+A blog can carry posts in many languages. The site's default language is
+`config/site.json`'s `language`.
+
+- A post's language is its frontmatter `lang` (BCP-47), defaulting to the site
+  language. A default-language post is served at `/posts/<slug>` (**no change**);
+  any other language at `/<lang>/posts/<slug>`, with a `/<lang>/` index and a
+  `/<lang>/feed.xml` for each non-default language that has ≥1 post.
+- Language variants of one article are linked by `translationOf` = the ROOT
+  post's slug. A root carries none; each variant points back at the root slug.
+  A post's hreflang family is every live post that resolves to the same root
+  slug. The page emits `<link rel="alternate" hreflang>` for each family
+  language plus an `x-default`, and the sitemap carries matching `xhtml:link`
+  alternates.
+- `<html lang dir>` comes from `htmlAttributes(lang, theme)`; `dir="rtl"` for
+  ar/he/fa/ur (`dirForLang`, extend `RTL_BASE_LANGS`).
+
+Routing/family helpers: `postPathFor`, `postUrlFor`, `langIndexPath`,
+`langFeedPath`, `translationFamily`, `familyRootSlug`, `postLang`,
+`nonDefaultLanguages`, `languagesPresent`, `postsInLanguage`.
+
 ```json
 {
   "brand_name": "Example Co",

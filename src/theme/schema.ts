@@ -55,12 +55,20 @@ export interface ThemeSurface {
   line: string;
 }
 
-// A header nav link (v0.3.0). When `nav_links` is non-empty it REPLACES the
-// default Home/About/Authors nav. `href` is always `/`-relative or `https://`
-// (validated at parse time — never `javascript:`/`data:`); `style: "pill"`
-// renders the link as a bordered pill. `label` is plain text, <= 30 chars.
+// A header nav entry (v0.3.0). When `nav_links` is non-empty it REPLACES the
+// default Home/About/Authors nav. Two kinds (v0.4.0 adds the second):
+//   - `type: "link"` (the default when `type` is absent) — a plain link. `href`
+//     is always `/`-relative or `https://` (validated at parse time — never
+//     `javascript:`/`data:`); `label` is plain text, <= 30 chars.
+//   - `type: "language_switch"` — renders the language switcher (links/pill to
+//     the languages the site publishes, or a post's siblings). It carries no
+//     `label`/`href`; the switcher content is computed at build time and hidden
+//     when the site has a single language.
+// `style: "pill"` renders links as bordered pills (both kinds).
 export type NavLinkStyle = "pill";
+export type NavLinkType = "link" | "language_switch";
 export interface NavLink {
+  type: NavLinkType;
   label: string;
   href: string;
   style: NavLinkStyle | null;
@@ -93,6 +101,10 @@ export interface ThemeConfig {
   // Optional explicit header-logo width in px (60-320). Null = the default
   // 40px-tall logo. When set the logo renders at this width with height:auto.
   logo_width: number | null;
+  // Optional target for the header logo / brand link (v0.4.0). Validated like a
+  // nav href (`/`-relative or `https://` only). Null = the default `/` (home).
+  // An external `https://` target gets rel="noopener".
+  logo_href: string | null;
   // A path under the repo's `public/` dir (e.g. "images/logo.png"), served at
   // the site root. Null = render the brand name as text.
   logo_key: string | null;
@@ -114,6 +126,7 @@ export const DEFAULT_RADIUS = "8px";
 export const DEFAULT_SPACE = "18px";
 export const NAV_LINKS_MAX = 6;
 export const NAV_LABEL_MAX = 30;
+export const NAV_LINK_TYPES: readonly NavLinkType[] = ["link", "language_switch"];
 export const LOGO_WIDTH_MIN = 60;
 export const LOGO_WIDTH_MAX = 320;
 
@@ -159,12 +172,19 @@ export function isSafeNavHref(href: string): boolean {
 function parseNavLink(value: unknown): NavLink | null {
   if (typeof value !== "object" || value === null) return null;
   const raw = value as Record<string, unknown>;
+  const style = raw.style === "pill" ? "pill" : null;
+
+  // A language_switch entry carries no label/href — the switcher content is
+  // computed at build time. Everything else is a plain link (the default when
+  // `type` is absent), which still requires a safe href + a <= 30-char label.
+  if (raw.type === "language_switch") {
+    return { type: "language_switch", label: "", href: "", style };
+  }
   const label = optionalString(raw.label);
   if (!label || label.length > NAV_LABEL_MAX) return null;
   const href = optionalString(raw.href);
   if (!href || !isSafeNavHref(href)) return null;
-  const style = raw.style === "pill" ? "pill" : null;
-  return { label, href, style };
+  return { type: "link", label, href, style };
 }
 
 // Parse the nav links: each entry is validated independently (invalid ones are
@@ -179,6 +199,15 @@ function parseNavLinks(value: unknown): NavLink[] {
     if (links.length >= NAV_LINKS_MAX) break;
   }
   return links;
+}
+
+// The header logo / brand link target. Validated exactly like a nav href
+// (`/`-relative or `https://` only, never `javascript:`/`data:`/`http:`/`//`);
+// anything else — including a blank value — falls back to null (the default
+// `/`), so a bad value can never inject a dangerous link.
+function parseLogoHref(value: unknown): string | null {
+  const href = optionalString(value);
+  return href && isSafeNavHref(href) ? href : null;
 }
 
 // An explicit logo width must be an integer px in [LOGO_WIDTH_MIN, MAX]; a
@@ -228,6 +257,7 @@ export function parseTheme(raw: unknown): ThemeConfig {
     surface: parseSurface(t.surface),
     nav_links: parseNavLinks(t.nav_links),
     logo_width: parseLogoWidth(t.logo_width),
+    logo_href: parseLogoHref(t.logo_href),
     logo_key: optionalString(t.logo_key),
     about_text: optionalString(t.about_text),
     contact_email: optionalString(t.contact_email),

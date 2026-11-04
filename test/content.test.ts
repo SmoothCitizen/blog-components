@@ -36,12 +36,12 @@ describe("parseFrontmatter", () => {
         updatedAt: "2026-11-02T00:00:00Z",
         lang: "ja",
         schemaVariant: "Article",
-        translationKey: "abc",
+        translationOf: "the-root",
         faqSchema: { "@type": "FAQPage", mainEntity: [] },
       },
       "a-post",
     );
-    expect(fm).toMatchObject({ status: "published", lang: "ja", schemaVariant: "Article", translationKey: "abc" });
+    expect(fm).toMatchObject({ status: "published", lang: "ja", schemaVariant: "Article", translationOf: "the-root" });
     expect(fm.faqSchema).toEqual({ "@type": "FAQPage", mainEntity: [] });
   });
 
@@ -113,20 +113,46 @@ describe("visibility", () => {
 });
 
 describe("hreflangAlternates", () => {
-  it("pairs live language versions sharing a translation key", () => {
-    const en = post("guide", { translationKey: "k1", lang: "en" });
-    const ja = post("guide-ja", { translationKey: "k1", lang: "ja" });
+  it("pairs live language versions of one family and adds x-default", () => {
+    // The root ("guide") carries no translationOf; the variant points back at
+    // it. The ja variant is served under its /ja/ prefix.
+    const en = post("guide", { lang: "en" });
+    const ja = post("guide-ja", { translationOf: "guide", lang: "ja" });
     const other = post("other");
     const alternates = hreflangAlternates(en, [en, ja, other], SITE);
     expect(alternates).toEqual([
       { hreflang: "en", href: "https://blog.example.com/posts/guide" },
-      { hreflang: "ja", href: "https://blog.example.com/posts/guide-ja" },
+      { hreflang: "ja", href: "https://blog.example.com/ja/posts/guide-ja" },
+      { hreflang: "x-default", href: "https://blog.example.com/posts/guide" },
     ]);
   });
 
+  it("computes the same family from a variant, with x-default on the root", () => {
+    const en = post("guide", { lang: "en" });
+    const ja = post("guide-ja", { translationOf: "guide", lang: "ja" });
+    // Asked for the ja variant: same alternates, x-default still the en root.
+    expect(hreflangAlternates(ja, [en, ja], SITE)).toEqual([
+      { hreflang: "en", href: "https://blog.example.com/posts/guide" },
+      { hreflang: "ja", href: "https://blog.example.com/ja/posts/guide-ja" },
+      { hreflang: "x-default", href: "https://blog.example.com/posts/guide" },
+    ]);
+  });
+
+  it("falls back x-default to the family root when no default-language sibling is live", () => {
+    // Root ("guide", en) is NOT in the live set; only es + ja variants are.
+    const es = post("guide-es", { translationOf: "guide", lang: "es" });
+    const ja = post("guide-ja", { translationOf: "guide", lang: "ja" });
+    const alternates = hreflangAlternates(es, [es, ja], SITE);
+    const xDefault = alternates.find((a) => a.hreflang === "x-default");
+    // No en sibling live → x-default points at the first family member (es).
+    expect(xDefault?.href).toBe("https://blog.example.com/es/posts/guide-es");
+    expect(alternates.map((a) => a.hreflang)).toEqual(["es", "ja", "x-default"]);
+  });
+
   it("never advertises a sibling that is not live in this build", () => {
-    const en = post("guide", { translationKey: "k1", lang: "en" });
-    // The ja sibling exists in the repo but is scheduled → not in the live set.
+    const en = post("guide", { lang: "en" });
+    // The ja sibling exists in the repo but is scheduled → not in the live set,
+    // so the root has no live sibling and emits no alternates.
     expect(hreflangAlternates(en, [en], SITE)).toEqual([]);
   });
 });

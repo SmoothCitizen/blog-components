@@ -18,6 +18,7 @@ export {
   POST_SCHEMA_VARIANTS,
   NAV_LINKS_MAX,
   NAV_LABEL_MAX,
+  NAV_LINK_TYPES,
   LOGO_WIDTH_MIN,
   LOGO_WIDTH_MAX,
 } from "./theme/schema";
@@ -33,6 +34,7 @@ export type {
   ThemeSurface,
   NavLink,
   NavLinkStyle,
+  NavLinkType,
 } from "./theme/schema";
 export { FONT_PAIRS, resolveFont, resolveLayout, resolveSurface, themeCss, DARK_SURFACE_MAX_LUMINANCE } from "./theme/css";
 export { classer, prefixStylesheet } from "./theme/classes";
@@ -45,6 +47,20 @@ export { parseFrontmatter, isValidSlug } from "./content/frontmatter";
 export { isServable, livePosts, paginate } from "./content/visibility";
 export type { PageSlice } from "./content/visibility";
 export { hreflangAlternates } from "./content/hreflang";
+export {
+  RTL_BASE_LANGS,
+  baseLang,
+  isRtlLang,
+  dirForLang,
+  postLang,
+  isDefaultLang,
+  familyRootSlug,
+  translationFamily,
+  nonDefaultLanguages,
+  languagesPresent,
+  postsInLanguage,
+} from "./content/languages";
+export type { Direction } from "./content/languages";
 export type { BodyFormat, FaqItem, HreflangAlternate, Post, PostFrontmatter, PostStatus } from "./content/types";
 export { MarkdownBody, Figure, parseMarkdownBlocks, resolveBodyFormat } from "./content/markdown";
 export type { MarkdownBlock } from "./content/markdown";
@@ -56,12 +72,24 @@ export {
 } from "./content/editorial-pages";
 export type { EditorialPlaceholders } from "./content/editorial-pages";
 
-export { absoluteUrl, authorPath, authorUrl, indexPagePath, postPath, postUrl } from "./seo/urls";
+export {
+  absoluteUrl,
+  authorPath,
+  authorUrl,
+  indexPagePath,
+  postPath,
+  postUrl,
+  postPathFor,
+  postUrlFor,
+  langIndexPath,
+  langFeedPath,
+} from "./seo/urls";
 export { authorJsonLd, faqPageNode, organizationNode, sponsorOrganizationNode, personNode, postJsonLd, siteJsonLd } from "./seo/jsonld";
 export { AI_CRAWLERS, robotsTxt, rssXml, sitemapXml } from "./seo/feeds";
 export { pageMetadata, postMetadata, siteMetadata } from "./seo/metadata";
 
-export { htmlAttributes, JsonLd, SiteFooter, SiteHeader, SiteShell, ThemeStyle } from "./components/chrome";
+export { htmlAttributes, JsonLd, LanguageSwitch, SiteFooter, SiteHeader, SiteShell, ThemeStyle } from "./components/chrome";
+export type { LanguageSwitchEntry } from "./components/chrome";
 export { DisclosureBanner, PaidPlacementCallout, SponsorAttribution, showSponsorBanner, showPaidPlacement } from "./components/disclosure";
 export {
   AboutContent,
