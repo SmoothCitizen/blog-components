@@ -5,8 +5,16 @@
 // value can never inject arbitrary CSS.
 
 import { prefixStylesheet } from "./classes";
-import { paletteCssVars, type PaletteSource } from "./palette";
-import { DEFAULT_FONT_PAIR, DEFAULT_LAYOUT, DEFAULT_RADIUS, DEFAULT_SPACE, LAYOUT_VARIANTS, type ThemeConfig } from "./schema";
+import { AA_CONTRAST, contrastRatio, mix, normalizeHex, paletteCssVars, relativeLuminance, type PaletteSource } from "./palette";
+import {
+  DEFAULT_FONT_PAIR,
+  DEFAULT_LAYOUT,
+  DEFAULT_RADIUS,
+  DEFAULT_SPACE,
+  LAYOUT_VARIANTS,
+  type ThemeConfig,
+  type ThemeSurface,
+} from "./schema";
 
 export interface FontStack {
   heading: string;
@@ -49,7 +57,64 @@ export function resolveLayout(theme: Pick<ThemeConfig, "layout_variant">): strin
 
 type ThemeCssInput = PaletteSource &
   Pick<ThemeConfig, "font_pair"> &
-  Partial<Pick<ThemeConfig, "fonts" | "radius" | "space" | "class_prefix" | "header_variant" | "post_variant">>;
+  Partial<
+    Pick<
+      ThemeConfig,
+      "fonts" | "radius" | "space" | "class_prefix" | "header_variant" | "post_variant" | "surface" | "nav_links" | "logo_width"
+    >
+  >;
+
+// The page-level colors, resolved. When a surface is absent (or fails
+// validation) these are the EXACT v0.2.0 literals, so themeCss is byte-identical
+// for a v0.2.0 config. `panel` and `softInk` are literal defaults too (they map
+// to the hard-coded `#f6f7f9` / `#333` the stylesheet used before); for a custom
+// surface they are derived from it so dark pages get dark panels / dim ink.
+interface ResolvedSurface {
+  bg: string;
+  ink: string;
+  muted: string;
+  line: string;
+  panel: string;
+  softInk: string;
+  dark: boolean;
+}
+
+const DEFAULT_SURFACE: ResolvedSurface = {
+  bg: "#ffffff",
+  ink: "#1a1a1a",
+  muted: "#5b6572",
+  line: "#e3e6ea",
+  panel: "#f6f7f9",
+  softInk: "#333",
+  dark: false,
+};
+
+// Below this background luminance the page is treated as dark and gets
+// `color-scheme: dark` on :root (so form controls / scrollbars match).
+export const DARK_SURFACE_MAX_LUMINANCE = 0.2;
+
+// Validate + AA-check a custom surface. All four hexes must be valid AND the ink
+// must read at WCAG AA (>= 4.5:1) on the bg; otherwise the surface is dropped
+// (fall back to the light default) rather than ship unreadable text.
+export function resolveSurface(surface: ThemeSurface | null | undefined): ResolvedSurface {
+  if (!surface) return DEFAULT_SURFACE;
+  const bg = normalizeHex(surface.bg);
+  const ink = normalizeHex(surface.ink);
+  const muted = normalizeHex(surface.muted);
+  const line = normalizeHex(surface.line);
+  if (!bg || !ink || !muted || !line || contrastRatio(ink, bg) < AA_CONTRAST) {
+    return DEFAULT_SURFACE;
+  }
+  return {
+    bg,
+    ink,
+    muted,
+    line,
+    panel: mix(ink, bg, 0.05), // a barely-raised surface, toward the ink
+    softInk: mix(ink, bg, 0.8), // dimmed body ink (excerpts, blockquotes)
+    dark: relativeLuminance(bg) < DARK_SURFACE_MAX_LUMINANCE,
+  };
+}
 
 export function themeCss(theme: ThemeCssInput): string {
   const font = resolveFont(theme.font_pair);
@@ -58,18 +123,19 @@ export function themeCss(theme: ThemeCssInput): string {
   const bodyFont = theme.fonts?.body ?? font.body;
   const radius = theme.radius ?? DEFAULT_RADIUS;
   const space = theme.space ?? DEFAULT_SPACE;
+  const s = resolveSurface(theme.surface);
   const css = `
 :root{
-${paletteCssVars(theme)}
-  --ink:#1a1a1a;
-  --muted:#5b6572;
-  --bg:#ffffff;
-  --panel:#f6f7f9;
-  --line:#e3e6ea;
+${paletteCssVars(theme, s.bg)}
+  --ink:${s.ink};
+  --muted:${s.muted};
+  --bg:${s.bg};
+  --panel:${s.panel};
+  --line:${s.line};
   --font-heading:${headingFont};
   --font-body:${bodyFont};
   --radius:${radius};
-  --space:${space};
+  --space:${space};${s.dark ? "\n  color-scheme:dark;" : ""}
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -103,7 +169,7 @@ article.post h1{font-size:34px;margin:8px 0 6px}
 .post-body h3{margin-top:26px;font-size:21px}
 .post-body p,.post-body ul,.post-body ol{margin:0 0 var(--space)}
 .post-body li{margin:4px 0}
-.post-body blockquote{margin:22px 0;padding:4px 18px;border-left:3px solid var(--accent-line);color:#333}
+.post-body blockquote{margin:22px 0;padding:4px 18px;border-left:3px solid var(--accent-line);color:${s.softInk}}
 .post-body figure{margin:26px 0}
 .post-body figcaption{color:var(--muted);font-size:14px;margin-top:6px}
 .post-body table{border-collapse:collapse;width:100%;margin:22px 0;font-size:16px}
@@ -146,13 +212,13 @@ article.post h1{font-size:34px;margin:8px 0 6px}
 /* layout: journal — large stacked entries */
 [data-layout="journal"] .post-list li{padding:26px 0;border-bottom:1px solid var(--line)}
 [data-layout="journal"] .post-list h2{font-size:26px;margin:0 0 6px}
-[data-layout="journal"] .excerpt{margin:8px 0 0;color:#333}
+[data-layout="journal"] .excerpt{margin:8px 0 0;color:${s.softInk}}
 
 /* layout: grid — cards */
 [data-layout="grid"] .post-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
 [data-layout="grid"] .post-list li{background:var(--secondary-tint,var(--panel));border:1px solid var(--line);border-radius:var(--radius);padding:20px}
 [data-layout="grid"] .post-list h2{font-size:20px;margin:0 0 8px}
-[data-layout="grid"] .excerpt{font-size:15px;color:#333}
+[data-layout="grid"] .excerpt{font-size:15px;color:${s.softInk}}
 
 /* layout: minimal — compact list */
 [data-layout="minimal"]{font-size:17px}
@@ -180,6 +246,53 @@ article.post h1{font-size:34px;margin:8px 0 6px}
 /* post page variant: narrow — tighter measure, larger body */
 [data-post="narrow"] article.post{max-width:620px;margin:0 auto}
 [data-post="narrow"] .post-body{font-size:19px}
-`.trim();
-  return prefixStylesheet(css, theme.class_prefix);
+`;
+  // Optional v0.3.0 blocks, appended ONLY when their feature is active so a
+  // v0.2.0 config's stylesheet is byte-identical.
+  const extra = optionalCss(theme);
+  const full = extra ? `${css}${extra}` : css;
+  return prefixStylesheet(full.trim(), theme.class_prefix);
+}
+
+// The nav-pill, logo-width and `bar` header rules. Each is emitted only when the
+// theme opts into it; a v0.2.0 config produces "".
+function optionalCss(theme: ThemeCssInput): string {
+  const parts: string[] = [];
+
+  if ((theme.nav_links ?? []).some((l) => l.style === "pill")) {
+    parts.push(
+      `/* nav pill links (v0.3.0) */\n` +
+        `.site-nav .nav-pill{border:1px solid currentColor;border-radius:30px;padding:6px 17px}`,
+    );
+  }
+
+  if (theme.logo_width) {
+    parts.push(
+      `/* explicit logo width (v0.3.0) */\n` +
+        `.site-header .logo{width:${theme.logo_width}px;height:auto}`,
+    );
+  }
+
+  if (theme.header_variant === "bar") {
+    // Full-bleed bar: logo left, nav right, surface-bg band, no accent tint.
+    const logoShrink = theme.logo_width
+      ? `\n@media (max-width:560px){[data-header="bar"] .site-header .logo{width:138px}}`
+      : "";
+    parts.push(
+      `/* header variant: bar — full-bleed, logo left + nav right, surface bg (v0.3.0) */\n` +
+        `[data-header="bar"] .site-header{background:var(--bg);border-bottom:1px solid var(--line);padding:21px 5%}\n` +
+        `[data-header="bar"] .site-header .wrap{max-width:none;margin:0;padding:0;display:flex;justify-content:space-between;align-items:center;gap:32px}\n` +
+        `[data-header="bar"] .site-header .brand{align-items:center;margin:0}\n` +
+        `[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px}\n` +
+        `[data-header="bar"] .site-nav a{color:var(--ink);text-decoration:none}\n` +
+        `[data-header="bar"] .site-nav a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:6px}\n` +
+        `@media (max-width:800px){[data-header="bar"] .site-header{padding:22px 6%}[data-header="bar"] .site-nav{gap:16px;font-size:14px}}` +
+        logoShrink,
+    );
+  }
+
+  // The base stylesheet already ends with one newline, so a single leading
+  // newline here yields exactly one blank-line separator (the block style used
+  // throughout the stylesheet).
+  return parts.length ? `\n${parts.join("\n\n")}\n` : "";
 }

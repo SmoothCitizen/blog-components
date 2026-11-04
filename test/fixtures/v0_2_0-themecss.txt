@@ -1,0 +1,128 @@
+:root{
+  --accent:#7a1f1f;
+  --accent-ink:#ffffff;
+  --accent-tint:#f2e9e9;
+  --accent-hover:#6a1b1b;
+  --accent-line:#d0b1b1;
+  --secondary:#896823;
+  --secondary-ink:#ffffff;
+  --secondary-tint:#f3f0e9;
+  --ink:#1a1a1a;
+  --muted:#5b6572;
+  --bg:#ffffff;
+  --panel:#f6f7f9;
+  --line:#e3e6ea;
+  --font-heading:"Iowan Old Style", "Palatino Linotype", Georgia, "Times New Roman", serif;
+  --font-body:Georgia, "Times New Roman", serif;
+  --radius:10px;
+  --space:20px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);line-height:1.65;font-size:18px;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--accent-hover);text-decoration:underline}
+h1,h2,h3,h4{font-family:var(--font-heading);line-height:1.2;color:var(--ink)}
+img{max-width:100%;height:auto}
+.exr-wrap{max-width:820px;margin:0 auto;padding:0 20px}
+.exr-skip-link{position:absolute;left:-9999px}
+.exr-skip-link:focus{left:16px;top:16px;background:var(--bg);padding:8px 12px;z-index:10}
+.exr-site-header{background:var(--accent-tint);border-bottom:1px solid var(--accent-line);padding:26px 0 18px}
+.exr-site-header .exr-brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.exr-site-header .exr-brand .exr-name{font-family:var(--font-heading);font-size:26px;font-weight:700;color:var(--ink)}
+.exr-site-header .exr-logo{display:block;height:40px;width:auto}
+.exr-site-header .exr-tagline{color:var(--muted);font-size:15px}
+.exr-site-nav{margin-top:12px;display:flex;gap:20px;font-size:15px}
+.exr-site-footer{background:var(--secondary-tint,transparent);border-top:1px solid var(--secondary,var(--line));margin-top:56px;padding:26px 0 44px;color:var(--muted);font-size:14px}
+.exr-post-list{list-style:none;margin:28px 0;padding:0}
+.exr-post-meta{color:var(--muted);font-size:14px}
+.exr-pagination{display:flex;justify-content:space-between;margin:36px 0;font-size:15px}
+.exr-empty{color:var(--muted)}
+.exr-accent-rule{height:3px;width:56px;background:var(--accent);border:0;margin:18px 0}
+article.exr-post h1{font-size:34px;margin:8px 0 6px}
+.exr-post-description{color:var(--muted);font-size:19px;margin:6px 0 0}
+.exr-hero{margin:22px 0}
+.exr-hero img{display:block;width:100%;border-radius:var(--radius)}
+/* post body typography */
+.exr-post-body{margin-top:22px}
+.exr-post-body h2{margin-top:34px;font-size:26px}
+.exr-post-body h3{margin-top:26px;font-size:21px}
+.exr-post-body p,.exr-post-body ul,.exr-post-body ol{margin:0 0 var(--space)}
+.exr-post-body li{margin:4px 0}
+.exr-post-body blockquote{margin:22px 0;padding:4px 18px;border-left:3px solid var(--accent-line);color:#333}
+.exr-post-body figure{margin:26px 0}
+.exr-post-body figcaption{color:var(--muted);font-size:14px;margin-top:6px}
+.exr-post-body table{border-collapse:collapse;width:100%;margin:22px 0;font-size:16px}
+.exr-post-body th,.exr-post-body td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.exr-post-body th{background:var(--panel)}
+.exr-post-body code{background:var(--panel);padding:1px 5px;border-radius:4px;font-size:.9em}
+.exr-post-body pre{background:var(--panel);padding:14px;border-radius:6px;overflow-x:auto}
+.exr-post-body pre code{background:none;padding:0}
+.exr-post-body .exr-key-takeaways{background:var(--accent-tint);border:1px solid var(--accent-line);border-radius:var(--radius);padding:6px 20px;margin:22px 0}
+.exr-post-body footer{color:var(--muted);font-size:14px;margin-top:34px}
+/* FAQ block (same markup the publisher writes into post bodies) */
+.exr-post-faq{margin:38px 0 10px}
+.exr-post-faq dl{margin:0}
+.exr-post-faq dl>div{padding:14px 0;border-top:1px solid var(--line)}
+.exr-post-faq dt{font-family:var(--font-heading);font-weight:700;font-size:19px}
+.exr-post-faq dd{margin:6px 0 0}
+/* author bio page: areas of expertise */
+.exr-author-expertise{margin:28px 0}
+.exr-author-expertise ul{margin:10px 0 0;padding-left:22px}
+/* sponsor-disclosure layer (opt-in). A fixed amber treatment, independent of
+   the site palette, so the disclosure stays "clear and conspicuous". */
+.exr-disclosure-banner{position:sticky;top:0;z-index:40;background:#fef3c7;border-bottom:1px solid #f59e0b;color:#431407;padding:12px 20px;display:flex;align-items:flex-start;gap:16px}
+.exr-disclosure-banner p{margin:0;max-width:900px;font-size:14px;line-height:1.5}
+.exr-disclosure-banner a{color:#431407;text-decoration:underline}
+.exr-disclosure-banner .exr-disclosure-site{font-weight:700}
+.exr-disclosure-dismiss{margin-left:auto;background:none;border:0;color:#431407;font-size:18px;line-height:1;cursor:pointer;padding:2px 6px}
+.exr-disclosure-callout{margin:18px 0;border:1px solid #f59e0b;background:#fef3c7;color:#431407;border-radius:8px;padding:12px 16px}
+.exr-disclosure-callout p{margin:6px 0 0;font-size:14px;line-height:1.55}
+.exr-disclosure-callout .exr-disclosure-label{margin:0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.exr-disclosure-callout a{color:#431407;text-decoration:underline}
+.exr-sponsor-attribution{margin:0 0 8px}
+.exr-sponsor-attribution .exr-disclosure-site{font-weight:600;color:var(--ink)}
+/* tag chips: tinted surface, page ink (never accent-on-tint text) */
+.exr-tag,.exr-tags a{display:inline-block;background:var(--secondary-tint,var(--accent-tint));color:var(--ink);border:1px solid var(--accent-line);border-radius:999px;padding:2px 10px;font-size:13px;line-height:1.6}
+.exr-tag:hover,.exr-tags a:hover{background:var(--accent-tint);color:var(--ink);text-decoration:none}
+/* buttons / CTAs: accent fill with the guarded ink */
+.exr-btn,.exr-post-body .exr-cta a{display:inline-block;background:var(--accent);color:var(--accent-ink);border:0;border-radius:var(--radius);padding:10px 18px;font-weight:600;text-decoration:none}
+.exr-btn:hover,.exr-post-body .exr-cta a:hover{background:var(--accent-hover);color:var(--accent-ink);text-decoration:none}
+
+/* layout: journal — large stacked entries */
+[data-layout="journal"] .exr-post-list li{padding:26px 0;border-bottom:1px solid var(--line)}
+[data-layout="journal"] .exr-post-list h2{font-size:26px;margin:0 0 6px}
+[data-layout="journal"] .exr-excerpt{margin:8px 0 0;color:#333}
+
+/* layout: grid — cards */
+[data-layout="grid"] .exr-post-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+[data-layout="grid"] .exr-post-list li{background:var(--secondary-tint,var(--panel));border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+[data-layout="grid"] .exr-post-list h2{font-size:20px;margin:0 0 8px}
+[data-layout="grid"] .exr-excerpt{font-size:15px;color:#333}
+
+/* layout: minimal — compact list */
+[data-layout="minimal"]{font-size:17px}
+[data-layout="minimal"] .exr-post-list li{padding:12px 0;border-bottom:1px dotted var(--line);display:flex;justify-content:space-between;gap:16px;align-items:baseline}
+[data-layout="minimal"] .exr-post-list h2{font-size:18px;margin:0;font-weight:600}
+[data-layout="minimal"] .exr-excerpt{display:none}
+
+/* header variant: classic (default, left brand + right nav) */
+[data-header="classic"] .exr-site-header .exr-wrap{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px}
+[data-header="classic"] .exr-site-nav{margin-top:0}
+/* header variant: centered — brand + nav stacked and centered */
+[data-header="centered"] .exr-site-header{text-align:center}
+[data-header="centered"] .exr-site-header .exr-brand{justify-content:center}
+[data-header="centered"] .exr-site-nav{justify-content:center}
+/* header variant: compact — tighter, single row, smaller name */
+[data-header="compact"] .exr-site-header{padding:14px 0}
+[data-header="compact"] .exr-site-header .exr-wrap{display:flex;justify-content:space-between;align-items:center;gap:12px}
+[data-header="compact"] .exr-site-header .exr-brand .exr-name{font-size:20px}
+[data-header="compact"] .exr-site-nav{margin-top:0}
+
+/* post page variant: classic (default measure) */
+[data-post="classic"] article.exr-post{max-width:720px;margin:0 auto}
+/* post page variant: wide — roomier measure */
+[data-post="wide"] article.exr-post{max-width:880px;margin:0 auto}
+/* post page variant: narrow — tighter measure, larger body */
+[data-post="narrow"] article.exr-post{max-width:620px;margin:0 auto}
+[data-post="narrow"] .exr-post-body{font-size:19px}

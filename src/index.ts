@@ -3,6 +3,7 @@
 
 export {
   parseTheme,
+  isSafeNavHref,
   DEFAULT_FONT_PAIR,
   DEFAULT_LAYOUT,
   DEFAULT_HEADER_VARIANT,
@@ -15,6 +16,10 @@ export {
   POST_VARIANTS,
   SCHEMA_VARIANTS,
   POST_SCHEMA_VARIANTS,
+  NAV_LINKS_MAX,
+  NAV_LABEL_MAX,
+  LOGO_WIDTH_MIN,
+  LOGO_WIDTH_MAX,
 } from "./theme/schema";
 export type {
   LayoutVariant,
@@ -25,8 +30,11 @@ export type {
   ThemeConfig,
   ThemeFonts,
   ThemePalette,
+  ThemeSurface,
+  NavLink,
+  NavLinkStyle,
 } from "./theme/schema";
-export { FONT_PAIRS, resolveFont, resolveLayout, themeCss } from "./theme/css";
+export { FONT_PAIRS, resolveFont, resolveLayout, resolveSurface, themeCss, DARK_SURFACE_MAX_LUMINANCE } from "./theme/css";
 export { classer, prefixStylesheet } from "./theme/classes";
 export { derivePalette, contrastRatio, guardAccent, normalizeHex, paletteCssVars, AA_CONTRAST } from "./theme/palette";
 

@@ -68,10 +68,36 @@ the publish boundary). Never pass an unsanitized or user-supplied body to `PostA
 every other site built from the same package: `palette`, `font_pair` (or custom `fonts.heading` /
 `fonts.body` stacks), `radius`, `space` (vertical rhythm), and three independent layout axes —
 `layout_variant` (post list: journal / grid / minimal), `header_variant` (classic / centered /
-compact) and `post_variant` (classic / wide / narrow). `class_prefix` namespaces every rendered
-class name and the matching stylesheet selectors (`classer` + `prefixStylesheet`), so two sites do
-not ship byte-identical markup. Every field is optional and defaults so that a config written for
-v0.1.0 renders byte-identically (empty prefix, default variants).
+compact / **bar**) and `post_variant` (classic / wide / narrow). `class_prefix` namespaces every
+rendered class name and the matching stylesheet selectors (`classer` + `prefixStylesheet`), so two
+sites do not ship byte-identical markup. Every field is optional and defaults so that a config
+written for v0.1.0 renders byte-identically (empty prefix, default variants).
+
+### v0.3.0 theme keys — match an existing brand site (all optional)
+
+A site that needs to match an existing brand's header and a dark page sets these; a config that
+omits them all renders byte-identically to v0.2.0.
+
+| Key | Type | Notes |
+|---|---|---|
+| `surface` | `{ bg, ink, muted, line }` (hexes) | Page-level colors. When set, `--bg`/`--ink`/`--muted`/`--line` (and the derived panel + dimmed body-ink) come from it; the accent guard + tints are computed against `surface.bg`, so the accent stays AA-readable and tints mix toward the surface. Each hex is re-validated; if any is invalid or `ink` fails AA (< 4.5:1) on `bg`, the whole surface is dropped (light v0.2.0 defaults). A low-luminance `bg` also adds `color-scheme: dark`. |
+| `nav_links` | `[{ label, href, style? }]`, max 6 | REPLACES the default Home/About/Authors nav. `href` must be `/`-relative or `https://` (`javascript:`/`data:`/`http:`/`//` rejected); external links get `rel="noopener"`. `label` is plain text, ≤ 30 chars. `style: "pill"` renders a bordered pill. |
+| `logo_width` | integer px, 60–320 | Header logo renders at this width with `height:auto`; unset keeps the default 40px height. |
+| `header_variant: "bar"` | enum value | Full-bleed header (logo left, nav right, surface-bg band, `--line` bottom border); the other three variants are unchanged. |
+
+```json
+{
+  "brand_name": "Example Co",
+  "header_variant": "bar",
+  "logo_width": 180,
+  "surface": { "bg": "#0f172a", "ink": "#e2e8f0", "muted": "#94a3b8", "line": "#1e293b" },
+  "nav_links": [
+    { "label": "Product", "href": "/product" },
+    { "label": "Pricing", "href": "/pricing", "style": "pill" },
+    { "label": "Docs", "href": "https://docs.example.com" }
+  ]
+}
+```
 - Visibility — `src/content/visibility.ts`. `status: "published"` AND `publishAt` <= build time.
   Fail-closed.
 

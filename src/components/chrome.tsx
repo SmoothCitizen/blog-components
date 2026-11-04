@@ -62,13 +62,22 @@ export function SiteHeader({
   const c = classer(classPrefix);
   const logoSrc = theme.logo_key ? `/${theme.logo_key.replace(/^\/+/, "")}` : null;
   const sponsor = site && showSponsorBanner(site) ? site.sponsor : null;
+  const navLinks = theme.nav_links ?? [];
+  // An explicit logo_width drives the size from CSS (width + height:auto), so
+  // the intrinsic height attribute is dropped; without it the logo keeps its
+  // default 40px height via the explicit attribute, exactly as before.
+  const logoWidth = theme.logo_width ?? null;
   return (
     <header className={c("site-header")}>
       <div className={c("wrap")}>
         <div className={c("brand")}>
           <a href="/" aria-label={`${theme.brand_name} home`}>
             {logoSrc ? (
-              <img className={c("logo")} src={logoSrc} alt={theme.brand_name} height={40} />
+              logoWidth ? (
+                <img className={c("logo")} src={logoSrc} alt={theme.brand_name} />
+              ) : (
+                <img className={c("logo")} src={logoSrc} alt={theme.brand_name} height={40} />
+              )
             ) : (
               <span className={c("name")}>{theme.brand_name}</span>
             )}
@@ -76,9 +85,24 @@ export function SiteHeader({
           {theme.tagline ? <span className={c("tagline")}>{theme.tagline}</span> : null}
         </div>
         <nav className={c("site-nav")} aria-label="Primary">
-          <a href="/">Home</a>
-          <a href="/about">About</a>
-          <a href="/authors">Authors</a>
+          {navLinks.length > 0 ? (
+            navLinks.map((link, i) => (
+              <a
+                key={i}
+                href={link.href}
+                className={link.style === "pill" ? c("nav-pill") : undefined}
+                rel={link.href.startsWith("https://") ? "noopener" : undefined}
+              >
+                {link.label}
+              </a>
+            ))
+          ) : (
+            <>
+              <a href="/">Home</a>
+              <a href="/about">About</a>
+              <a href="/authors">Authors</a>
+            </>
+          )}
           {sponsor ? <a href={sponsor.disclosurePath}>Disclosure</a> : null}
         </nav>
       </div>

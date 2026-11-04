@@ -8,6 +8,39 @@ All notable changes to the blog components package. Versions follow
 - **major** — anything a pinned repo must adapt to (a required key, a renamed export,
   a changed file layout, a changed visibility rule).
 
+## [0.3.0] — 2026-11-04
+
+Minor: new optional theme surfaces only. A config that sets none of the new keys
+renders byte-identically to v0.2.0 (`themeCss` output and header markup are
+byte-for-byte unchanged — asserted by `test/surface-nav.test.ts` against the
+captured v0.2.0 fixtures in `test/fixtures/`).
+
+- **Page-surface colors (`surface`).** New optional theme key
+  `surface: { bg, ink, muted, line }` (four hexes). When set, every page-level
+  color (`--bg` / `--ink` / `--muted` / `--line`, plus the derived panel and the
+  dimmed body-ink used by excerpts/blockquotes) comes from it instead of the
+  hard-coded light defaults, letting a site match a dark brand site. The accent
+  contrast guard and the accent/line tints are computed against the surface bg
+  (not hard-coded white), so the accent stays WCAG-AA readable and the tints mix
+  toward the surface (a dark site gets dark tints). Each hex is re-validated with
+  the strict normalizer; if any is invalid, or the ink fails AA (< 4.5:1) on the
+  bg, the whole surface is dropped and the v0.2.0 light defaults are used rather
+  than shipping unreadable text. A low-luminance bg also emits
+  `color-scheme: dark` on `:root`.
+- **Header nav links (`nav_links`).** New optional
+  `nav_links: [{ label, href, style? }]` (max 6). When non-empty it REPLACES the
+  default Home/About/Authors nav. `href` must be `/`-relative or `https://`
+  (`javascript:`/`data:`/`http:`/protocol-relative are rejected at parse time);
+  external links get `rel="noopener"`. `label` is plain text, <= 30 chars.
+  `style: "pill"` renders a bordered pill (1px `currentColor`, 30px radius).
+- **Logo sizing (`logo_width`).** New optional integer px (60–320). When set the
+  header logo renders at that width with `height:auto` (the intrinsic height
+  attribute is dropped); unset keeps the default 40px height.
+- **Header variant `bar`.** New fourth `header_variant` — a full-bleed bar (logo
+  left, nav right, vertically centered, surface-bg band with a `--line` bottom
+  border, 32px nav gap, hover underline) with responsive padding/gaps and a
+  ≤560px logo shrink when `logo_width` is set.
+
 ## [0.2.0] — 2026-11-04
 
 Minor: new optional surfaces only. A blog that pins v0.1.0 and upgrades without

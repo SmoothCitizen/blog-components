@@ -15,7 +15,10 @@ export type LayoutVariant = "journal" | "grid" | "minimal";
 // post-list `layout_variant`. Together (3 × 3 × 3) plus the palette, fonts,
 // radius/spacing and class prefix they let each site carry its own look and
 // markup rather than every site rendering the identical default.
-export type HeaderVariant = "classic" | "centered" | "compact";
+// "bar" is a full-bleed header (logo left, nav right, surface-bg band) added in
+// v0.3.0 for sites matching an existing brand site's chrome. The first three are
+// unchanged from v0.2.0.
+export type HeaderVariant = "classic" | "centered" | "compact" | "bar";
 export type PostVariant = "classic" | "wide" | "narrow";
 export type SchemaVariant = "Article" | "BlogPosting";
 // A post may override the site default with "Review" — a comparison / product
@@ -39,6 +42,30 @@ export interface ThemeFonts {
   body: string | null;
 }
 
+// Page-surface colors (v0.3.0). Four raw hexes carried the same way `palette`
+// carries its primary/secondary — stored verbatim here and RE-VALIDATED (and
+// AA-checked) in the palette/css layer before any value reaches CSS. When a
+// `surface` is set the page bg/ink/muted/line come from it instead of the
+// hard-coded light defaults, letting a site match a dark brand site; when it is
+// absent or fails validation the page keeps the exact v0.2.0 light surface.
+export interface ThemeSurface {
+  bg: string;
+  ink: string;
+  muted: string;
+  line: string;
+}
+
+// A header nav link (v0.3.0). When `nav_links` is non-empty it REPLACES the
+// default Home/About/Authors nav. `href` is always `/`-relative or `https://`
+// (validated at parse time — never `javascript:`/`data:`); `style: "pill"`
+// renders the link as a bordered pill. `label` is plain text, <= 30 chars.
+export type NavLinkStyle = "pill";
+export interface NavLink {
+  label: string;
+  href: string;
+  style: NavLinkStyle | null;
+}
+
 export interface ThemeConfig {
   brand_name: string;
   tagline: string | null;
@@ -58,6 +85,14 @@ export interface ThemeConfig {
   space: string;
   // Per-site class namespace (see ./classes.ts). "" = no prefix.
   class_prefix: string;
+  // Optional page-surface colors (see ThemeSurface). Null = the v0.2.0 light
+  // surface (white bg / near-black ink).
+  surface: ThemeSurface | null;
+  // Optional header nav links; [] = the default Home/About/Authors nav.
+  nav_links: NavLink[];
+  // Optional explicit header-logo width in px (60-320). Null = the default
+  // 40px-tall logo. When set the logo renders at this width with height:auto.
+  logo_width: number | null;
   // A path under the repo's `public/` dir (e.g. "images/logo.png"), served at
   // the site root. Null = render the brand name as text.
   logo_key: string | null;
@@ -66,7 +101,7 @@ export interface ThemeConfig {
 }
 
 export const LAYOUT_VARIANTS: readonly LayoutVariant[] = ["journal", "grid", "minimal"];
-export const HEADER_VARIANTS: readonly HeaderVariant[] = ["classic", "centered", "compact"];
+export const HEADER_VARIANTS: readonly HeaderVariant[] = ["classic", "centered", "compact", "bar"];
 export const POST_VARIANTS: readonly PostVariant[] = ["classic", "wide", "narrow"];
 export const SCHEMA_VARIANTS: readonly SchemaVariant[] = ["Article", "BlogPosting"];
 export const POST_SCHEMA_VARIANTS: readonly PostSchemaVariant[] = ["Article", "BlogPosting", "Review"];
@@ -77,6 +112,10 @@ export const DEFAULT_SCHEMA_VARIANT: SchemaVariant = "BlogPosting";
 export const DEFAULT_FONT_PAIR = "editorial";
 export const DEFAULT_RADIUS = "8px";
 export const DEFAULT_SPACE = "18px";
+export const NAV_LINKS_MAX = 6;
+export const NAV_LABEL_MAX = 30;
+export const LOGO_WIDTH_MIN = 60;
+export const LOGO_WIDTH_MAX = 320;
 
 const optionalString = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
@@ -92,6 +131,64 @@ function parsePalette(value: unknown): ThemePalette | null {
     primary,
     secondary: optionalString(raw.secondary),
   };
+}
+
+// Surface colors are stored raw (like the palette), then re-validated as hexes
+// and AA-checked in the css/palette layer. All four must be present strings or
+// the whole surface is dropped (fall back to the light default).
+function parseSurface(value: unknown): ThemeSurface | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const bg = optionalString(raw.bg);
+  const ink = optionalString(raw.ink);
+  const muted = optionalString(raw.muted);
+  const line = optionalString(raw.line);
+  if (!bg || !ink || !muted || !line) return null;
+  return { bg, ink, muted, line };
+}
+
+// A nav href is only allowed to be `/`-relative (a single leading slash, never
+// protocol-relative `//`) or an absolute `https://` URL. Everything else —
+// `javascript:`, `data:`, bare `http://`, mailto:, fragments — is rejected so a
+// values file can never inject a dangerous link.
+export function isSafeNavHref(href: string): boolean {
+  if (href.startsWith("https://")) return href.length > "https://".length;
+  return href.startsWith("/") && !href.startsWith("//");
+}
+
+function parseNavLink(value: unknown): NavLink | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const label = optionalString(raw.label);
+  if (!label || label.length > NAV_LABEL_MAX) return null;
+  const href = optionalString(raw.href);
+  if (!href || !isSafeNavHref(href)) return null;
+  const style = raw.style === "pill" ? "pill" : null;
+  return { label, href, style };
+}
+
+// Parse the nav links: each entry is validated independently (invalid ones are
+// dropped), and the list is capped at NAV_LINKS_MAX. [] when absent or when
+// nothing valid survives, so the default nav renders.
+function parseNavLinks(value: unknown): NavLink[] {
+  if (!Array.isArray(value)) return [];
+  const links: NavLink[] = [];
+  for (const entry of value) {
+    const link = parseNavLink(entry);
+    if (link) links.push(link);
+    if (links.length >= NAV_LINKS_MAX) break;
+  }
+  return links;
+}
+
+// An explicit logo width must be an integer px in [LOGO_WIDTH_MIN, MAX]; a
+// numeric string is accepted. Anything else (non-integer, out of range) falls
+// back to null (the default 40px-tall logo).
+function parseLogoWidth(value: unknown): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isInteger(n)) return null;
+  if (n < LOGO_WIDTH_MIN || n > LOGO_WIDTH_MAX) return null;
+  return n;
 }
 
 // Validate + normalize a raw theme.json. `brand_name` is the one required key
@@ -128,6 +225,9 @@ export function parseTheme(raw: unknown): ThemeConfig {
     radius: safeLength(t.radius) ?? DEFAULT_RADIUS,
     space: safeLength(t.space) ?? DEFAULT_SPACE,
     class_prefix: slugPrefix(optionalString(t.class_prefix)),
+    surface: parseSurface(t.surface),
+    nav_links: parseNavLinks(t.nav_links),
+    logo_width: parseLogoWidth(t.logo_width),
     logo_key: optionalString(t.logo_key),
     about_text: optionalString(t.about_text),
     contact_email: optionalString(t.contact_email),
