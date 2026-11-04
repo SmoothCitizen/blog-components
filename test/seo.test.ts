@@ -13,7 +13,9 @@ const SITE: SiteConfig = {
   canonical_hostname: "blog.example.com",
   language: "en",
   description: "Notes from Example Co",
-  authors: [{ slug: "jane-doe", name: "Jane Doe", title: "Founder", bio: "Writes things." }],
+  authors: [{ slug: "jane-doe", name: "Jane Doe", title: "Founder", bio: "Writes things.", expertise: [] }],
+  features: { sponsorDisclosure: false },
+  sponsor: null,
 };
 const THEME = parseTheme({ brand_name: "Example Co", logo_key: "images/logo.png" });
 

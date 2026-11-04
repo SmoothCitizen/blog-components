@@ -1,14 +1,26 @@
 // Site chrome: theme <style>, JSON-LD script, header, footer and the shell
-// that wraps every page. Every chrome link is same-host relative; there is no
-// "powered by" mark, no sponsored link and no disclosure banner — this is the
-// customer's own blog.
+// that wraps every page. Every chrome link is same-host relative. On a plain
+// blog (the default) there is no "powered by" mark, no sponsored link and no
+// disclosure banner. A sponsor-disclosure site (opt-in `features`) additionally
+// mounts the banner, the footer attribution line and a /disclosure nav entry —
+// see `./disclosure`.
+//
+// Class names are namespaced per site through `theme.class_prefix` (passed as
+// `classPrefix`), so independently-published sites do not share identical
+// markup. The default "" prefix keeps class names byte-identical.
 
 import type { ReactNode } from "react";
 
 import type { SiteConfig } from "../site/schema";
+import { classer } from "../theme/classes";
 import { resolveLayout, themeCss } from "../theme/css";
 import type { ThemeConfig } from "../theme/schema";
 import { jsonLdSafe } from "../util";
+import { DisclosureBanner, showSponsorBanner, SponsorAttribution } from "./disclosure";
+
+// The chrome needs only the disclosure-relevant slice of the site config. It is
+// optional so a plain blog can keep calling the chrome with no site at all.
+type ChromeSite = Pick<SiteConfig, "features" | "sponsor"> | undefined;
 
 export function ThemeStyle({ theme }: { theme: ThemeConfig }) {
   return <style dangerouslySetInnerHTML={{ __html: themeCss(theme) }} />;
@@ -25,43 +37,82 @@ export function JsonLd({ data }: { data: readonly Record<string, unknown>[] }) {
 }
 
 // Attributes for the root <html> element (the app's root layout renders it).
-export function htmlAttributes(site: Pick<SiteConfig, "language">, theme: ThemeConfig) {
-  return { lang: site.language, "data-layout": resolveLayout(theme) } as const;
+// The layout/header/post variant attributes drive the per-site layout CSS.
+export function htmlAttributes(
+  site: Pick<SiteConfig, "language">,
+  theme: Pick<ThemeConfig, "layout_variant" | "header_variant" | "post_variant">,
+) {
+  return {
+    lang: site.language,
+    "data-layout": resolveLayout(theme),
+    "data-header": theme.header_variant,
+    "data-post": theme.post_variant,
+  } as const;
 }
 
-export function SiteHeader({ theme }: { theme: ThemeConfig }) {
+export function SiteHeader({
+  theme,
+  site,
+  classPrefix = "",
+}: {
+  theme: ThemeConfig;
+  site?: ChromeSite;
+  classPrefix?: string;
+}) {
+  const c = classer(classPrefix);
   const logoSrc = theme.logo_key ? `/${theme.logo_key.replace(/^\/+/, "")}` : null;
+  const sponsor = site && showSponsorBanner(site) ? site.sponsor : null;
   return (
-    <header className="site-header">
-      <div className="wrap">
-        <div className="brand">
+    <header className={c("site-header")}>
+      <div className={c("wrap")}>
+        <div className={c("brand")}>
           <a href="/" aria-label={`${theme.brand_name} home`}>
             {logoSrc ? (
-              <img className="logo" src={logoSrc} alt={theme.brand_name} height={40} />
+              <img className={c("logo")} src={logoSrc} alt={theme.brand_name} height={40} />
             ) : (
-              <span className="name">{theme.brand_name}</span>
+              <span className={c("name")}>{theme.brand_name}</span>
             )}
           </a>
-          {theme.tagline ? <span className="tagline">{theme.tagline}</span> : null}
+          {theme.tagline ? <span className={c("tagline")}>{theme.tagline}</span> : null}
         </div>
-        <nav className="site-nav" aria-label="Primary">
+        <nav className={c("site-nav")} aria-label="Primary">
           <a href="/">Home</a>
           <a href="/about">About</a>
           <a href="/authors">Authors</a>
+          {sponsor ? <a href={sponsor.disclosurePath}>Disclosure</a> : null}
         </nav>
       </div>
     </header>
   );
 }
 
-export function SiteFooter({ theme, year }: { theme: ThemeConfig; year: number }) {
+export function SiteFooter({
+  theme,
+  year,
+  site,
+  classPrefix = "",
+}: {
+  theme: ThemeConfig;
+  year: number;
+  site?: ChromeSite;
+  classPrefix?: string;
+}) {
+  const c = classer(classPrefix);
+  const sponsor = site && showSponsorBanner(site) ? site.sponsor : null;
   return (
-    <footer className="site-footer">
-      <div className="wrap">
+    <footer className={c("site-footer")}>
+      <div className={c("wrap")}>
+        {sponsor ? <SponsorAttribution siteName={theme.brand_name} sponsor={sponsor} classPrefix={classPrefix} /> : null}
         <p>
           &copy; {year} {theme.brand_name}.{" "}
-          {theme.contact_email ? <span className="contact">Contact: {theme.contact_email}</span> : null}{" "}
+          {theme.contact_email ? <span className={c("contact")}>Contact: {theme.contact_email}</span> : null}{" "}
           <a href="/feed.xml">RSS</a>
+          {sponsor ? (
+            <>
+              {" "}
+              <a href={sponsor.disclosurePath}>Disclosure</a> <a href={sponsor.aboutPath}>About</a>
+            </>
+          ) : null}
         </p>
       </div>
     </footer>
@@ -69,18 +120,34 @@ export function SiteFooter({ theme, year }: { theme: ThemeConfig; year: number }
 }
 
 // Header + <main> + footer. `year` is passed in (the build's year) so the
-// component stays pure.
-export function SiteShell({ theme, year, children }: { theme: ThemeConfig; year: number; children: ReactNode }) {
+// component stays pure. A sponsor-disclosure site also mounts the site-wide
+// banner above the header.
+export function SiteShell({
+  theme,
+  year,
+  children,
+  site,
+  classPrefix = "",
+}: {
+  theme: ThemeConfig;
+  year: number;
+  children: ReactNode;
+  site?: ChromeSite;
+  classPrefix?: string;
+}) {
+  const c = classer(classPrefix);
+  const sponsor = site && showSponsorBanner(site) ? site.sponsor : null;
   return (
     <>
-      <a className="skip-link" href="#content">
+      <a className={c("skip-link")} href="#content">
         Skip to content
       </a>
-      <SiteHeader theme={theme} />
-      <main className="wrap" id="content">
+      {sponsor ? <DisclosureBanner siteName={theme.brand_name} sponsor={sponsor} classPrefix={classPrefix} /> : null}
+      <SiteHeader theme={theme} site={site} classPrefix={classPrefix} />
+      <main className={c("wrap")} id="content">
         {children}
       </main>
-      <SiteFooter theme={theme} year={year} />
+      <SiteFooter theme={theme} year={year} site={site} classPrefix={classPrefix} />
     </>
   );
 }

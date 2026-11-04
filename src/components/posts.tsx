@@ -1,17 +1,54 @@
 // Post index, pagination, the post page, the FAQ block, author + about pages.
 // Pages receive already-filtered LIVE posts; nothing here decides visibility.
+//
+// Class names are namespaced per site through `classPrefix` (the site's
+// `theme.class_prefix`); the default "" keeps them byte-identical.
 
 import type { FaqItem, Post } from "../content/types";
 import { authorBySlug, type Author, type SiteConfig } from "../site/schema";
 import { authorPath, indexPagePath, postPath } from "../seo/urls";
+import { classer } from "../theme/classes";
 import type { ThemeConfig } from "../theme/schema";
 import { toIsoDate } from "../util";
+import { MarkdownBody, resolveBodyFormat } from "../content/markdown";
+import { PaidPlacementCallout, showPaidPlacement } from "./disclosure";
 
-function Byline({ post, site }: { post: Post; site: Pick<SiteConfig, "authors"> }) {
+// The site shape the post page needs: authors for bylines, plus the optional
+// sponsor-disclosure config (both null/off on a plain blog).
+type PostSite = Pick<SiteConfig, "authors" | "features" | "sponsor">;
+
+// The post body. The body string is either the publisher's article HTML or a
+// hand-written body. SECURITY: an HTML body is injected verbatim — it MUST be
+// sanitized BEFORE it is committed (the server is the only trust boundary; this
+// package never sees untrusted input and does not re-sanitize). `bodyFormat`
+// picks the path; when it is null the format is auto-detected from the body
+// (see `resolveBodyFormat`). Both render inside `.post-body`, so the theme's
+// typography is identical.
+export function PostBody({
+  post,
+  classPrefix = "",
+}: {
+  post: Pick<Post, "html" | "frontmatter">;
+  classPrefix?: string;
+}) {
+  const c = classer(classPrefix);
+  const format = resolveBodyFormat(post.frontmatter.bodyFormat, post.html);
+  if (format === "markdown") {
+    return (
+      <div className={c("post-body")}>
+        <MarkdownBody source={post.html} />
+      </div>
+    );
+  }
+  return <div className={c("post-body")} dangerouslySetInnerHTML={{ __html: post.html }} />;
+}
+
+function Byline({ post, site, classPrefix = "" }: { post: Post; site: Pick<SiteConfig, "authors">; classPrefix?: string }) {
+  const c = classer(classPrefix);
   const fm = post.frontmatter;
   const author = authorBySlug(site, fm.authorSlug);
   return (
-    <p className="post-meta">
+    <p className={c("post-meta")}>
       <time dateTime={fm.publishAt}>{toIsoDate(fm.publishAt)}</time>
       {" · "}
       {author ? <a href={authorPath(author.slug)}>{author.name}</a> : <span>{fm.author}</span>}
@@ -19,27 +56,37 @@ function Byline({ post, site }: { post: Post; site: Pick<SiteConfig, "authors"> 
   );
 }
 
-export function PostList({ posts, site }: { posts: readonly Post[]; site: Pick<SiteConfig, "authors"> }) {
-  if (posts.length === 0) return <p className="empty">No posts yet.</p>;
+export function PostList({
+  posts,
+  site,
+  classPrefix = "",
+}: {
+  posts: readonly Post[];
+  site: Pick<SiteConfig, "authors">;
+  classPrefix?: string;
+}) {
+  const c = classer(classPrefix);
+  if (posts.length === 0) return <p className={c("empty")}>No posts yet.</p>;
   return (
-    <ul className="post-list">
+    <ul className={c("post-list")}>
       {posts.map((post) => (
         <li key={post.slug}>
           <h2>
             <a href={postPath(post.slug)}>{post.frontmatter.title}</a>
           </h2>
-          <Byline post={post} site={site} />
-          {post.frontmatter.description ? <p className="excerpt">{post.frontmatter.description}</p> : null}
+          <Byline post={post} site={site} classPrefix={classPrefix} />
+          {post.frontmatter.description ? <p className={c("excerpt")}>{post.frontmatter.description}</p> : null}
         </li>
       ))}
     </ul>
   );
 }
 
-export function Pagination({ page, totalPages }: { page: number; totalPages: number }) {
+export function Pagination({ page, totalPages, classPrefix = "" }: { page: number; totalPages: number; classPrefix?: string }) {
   if (totalPages <= 1) return null;
+  const c = classer(classPrefix);
   return (
-    <nav className="pagination" aria-label="Pagination">
+    <nav className={c("pagination")} aria-label="Pagination">
       {page > 1 ? (
         <a rel="prev" href={indexPagePath(page - 1)}>
           &larr; Newer
@@ -64,32 +111,44 @@ export function PostIndex({
   theme,
   page,
   totalPages,
+  classPrefix = "",
 }: {
   posts: readonly Post[];
   site: Pick<SiteConfig, "authors">;
   theme: ThemeConfig;
   page: number;
   totalPages: number;
+  classPrefix?: string;
 }) {
+  const c = classer(classPrefix);
   return (
     <>
       <h1>
         {theme.brand_name}
-        {page > 1 ? <span className="post-meta"> — page {page}</span> : null}
+        {page > 1 ? <span className={c("post-meta")}> — page {page}</span> : null}
       </h1>
-      <hr className="accent-rule" />
-      <PostList posts={posts} site={site} />
-      <Pagination page={page} totalPages={totalPages} />
+      <hr className={c("accent-rule")} />
+      <PostList posts={posts} site={site} classPrefix={classPrefix} />
+      <Pagination page={page} totalPages={totalPages} classPrefix={classPrefix} />
     </>
   );
 }
 
 // The visible FAQ block, with the same markup the publisher writes into
 // generated post bodies (`section.post-faq > h2 + dl`).
-export function FaqBlock({ items, heading = "Frequently asked questions" }: { items: readonly FaqItem[]; heading?: string }) {
+export function FaqBlock({
+  items,
+  heading = "Frequently asked questions",
+  classPrefix = "",
+}: {
+  items: readonly FaqItem[];
+  heading?: string;
+  classPrefix?: string;
+}) {
   if (items.length === 0) return null; // never an empty FAQ
+  const c = classer(classPrefix);
   return (
-    <section className="post-faq" aria-label={heading}>
+    <section className={c("post-faq")} aria-label={heading}>
       <h2>{heading}</h2>
       <dl>
         {items.map((item) => (
@@ -103,40 +162,49 @@ export function FaqBlock({ items, heading = "Frequently asked questions" }: { it
   );
 }
 
-// The post page body. `post.html` is the publisher's sanitized article HTML
-// (or a hand-written HTML body) committed to the blog's own private repo; it is
-// rendered as-is, like the hosted renderer does.
-export function PostArticle({ post, site }: { post: Post; site: Pick<SiteConfig, "authors"> }) {
+// The post page. When the site runs the sponsor-disclosure layer and this post
+// features a paid brand, the paid-placement callout renders above the byline.
+export function PostArticle({ post, site, classPrefix = "" }: { post: Post; site: PostSite; classPrefix?: string }) {
+  const c = classer(classPrefix);
   const fm = post.frontmatter;
   return (
-    <article className="post">
+    <article className={c("post")}>
+      {showPaidPlacement(site, fm) && site.sponsor ? (
+        <PaidPlacementCallout
+          paidBrands={fm.paidBrands}
+          otherBrands={fm.otherBrands}
+          disclosurePath={site.sponsor.disclosurePath}
+          classPrefix={classPrefix}
+        />
+      ) : null}
       <h1>{fm.title}</h1>
-      {fm.description ? <p className="post-description">{fm.description}</p> : null}
-      <Byline post={post} site={site} />
-      <hr className="accent-rule" />
+      {fm.description ? <p className={c("post-description")}>{fm.description}</p> : null}
+      <Byline post={post} site={site} classPrefix={classPrefix} />
+      <hr className={c("accent-rule")} />
       {fm.coverImage ? (
-        <figure className="hero">
+        <figure className={c("hero")}>
           <img src={fm.coverImage} alt={fm.coverImageAlt ?? ""} />
         </figure>
       ) : null}
-      <div className="post-body" dangerouslySetInnerHTML={{ __html: post.html }} />
-      <FaqBlock items={fm.faq} />
+      <PostBody post={post} classPrefix={classPrefix} />
+      <FaqBlock items={fm.faq} classPrefix={classPrefix} />
     </article>
   );
 }
 
-export function AuthorsIndex({ authors }: { authors: readonly Author[] }) {
+export function AuthorsIndex({ authors, classPrefix = "" }: { authors: readonly Author[]; classPrefix?: string }) {
+  const c = classer(classPrefix);
   return (
     <>
       <h1>Authors</h1>
-      <hr className="accent-rule" />
-      <ul className="post-list">
+      <hr className={c("accent-rule")} />
+      <ul className={c("post-list")}>
         {authors.map((author) => (
           <li key={author.slug}>
             <h2>
               <a href={authorPath(author.slug)}>{author.name}</a>
             </h2>
-            {author.title ? <p className="post-meta">{author.title}</p> : null}
+            {author.title ? <p className={c("post-meta")}>{author.title}</p> : null}
           </li>
         ))}
       </ul>
@@ -148,26 +216,48 @@ export function AuthorProfile({
   author,
   posts,
   site,
+  classPrefix = "",
 }: {
   author: Author;
   posts: readonly Post[];
   site: Pick<SiteConfig, "authors">;
+  classPrefix?: string;
 }) {
+  const c = classer(classPrefix);
   return (
     <>
       <h1>{author.name}</h1>
-      {author.title ? <p className="post-meta">{author.title}</p> : null}
-      <hr className="accent-rule" />
-      {author.bio ? <p className="author-bio">{author.bio}</p> : null}
+      {author.title ? <p className={c("post-meta")}>{author.title}</p> : null}
+      <hr className={c("accent-rule")} />
+      {author.bio ? <p className={c("author-bio")}>{author.bio}</p> : null}
+      {author.expertise.length > 0 ? (
+        <section className={c("author-expertise")}>
+          <h2>Areas of expertise</h2>
+          <ul>
+            {author.expertise.map((area) => (
+              <li key={area}>{area}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <h2>Posts</h2>
-      <PostList posts={posts} site={site} />
+      <PostList posts={posts} site={site} classPrefix={classPrefix} />
     </>
   );
 }
 
 // About page. `about_text` is plain text from the theme editor (paragraphs
 // split on blank lines), rendered as text — never as HTML.
-export function AboutContent({ theme, site }: { theme: ThemeConfig; site: Pick<SiteConfig, "description"> }) {
+export function AboutContent({
+  theme,
+  site,
+  classPrefix = "",
+}: {
+  theme: ThemeConfig;
+  site: Pick<SiteConfig, "description">;
+  classPrefix?: string;
+}) {
+  const c = classer(classPrefix);
   const paragraphs = (theme.about_text ?? site.description ?? `${theme.brand_name} publishes here.`)
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -175,17 +265,17 @@ export function AboutContent({ theme, site }: { theme: ThemeConfig; site: Pick<S
   return (
     <>
       <h1>About {theme.brand_name}</h1>
-      <hr className="accent-rule" />
-      <div className="about-body">
+      <hr className={c("accent-rule")} />
+      <div className={c("about-body")}>
         {paragraphs.map((p, i) => (
           <p key={i}>{p}</p>
         ))}
       </div>
-      <p className="post-meta">
+      <p className={c("post-meta")}>
         Articles here are researched and drafted with AI assistance and reviewed by the named author before
         publishing.
       </p>
-      {theme.contact_email ? <p className="post-meta">Contact: {theme.contact_email}</p> : null}
+      {theme.contact_email ? <p className={c("post-meta")}>Contact: {theme.contact_email}</p> : null}
     </>
   );
 }

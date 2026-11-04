@@ -5,8 +5,8 @@
 // too). The body is rendered as HTML, not compiled as MDX: one stray `{` or an
 // unclosed `<br>` in a generated post must never break the whole site's build.
 //
-// Frontmatter keys (camelCase; written by `Network::CustomerRepoProfile` in
-// the API — change both together):
+// Frontmatter keys (camelCase; written by the API's publisher — change the
+// publisher and this contract together):
 //
 //   title           string, required
 //   description     string, optional (meta description + excerpt)
@@ -30,10 +30,28 @@
 //                   the FAQ block AND its FAQPage JSON-LD
 //   coverImage      site-relative path, optional (e.g. /images/posts/x/cover.png)
 //   coverImageAlt   string, required when coverImage is set
+//   bodyFormat      "html" | "markdown", optional — how `html`/body is rendered.
+//                   Absent → auto-detected from the body (`resolveBodyFormat`):
+//                   a body starting with an HTML block tag is HTML, else
+//                   markdown. Set it explicitly to override the detection. A
+//                   generated post ships sanitized article HTML (injected
+//                   verbatim); a hand-written post may be markdown.
+//   paidBrands      string[], optional (default []) — brands featured in this
+//                   post under a paid arrangement. ONLY consumed when the site
+//                   enables the sponsor-disclosure feature; drives the per-post
+//                   disclosure callout. Empty/absent on a normal blog post.
+//   otherBrands     string[], optional (default []) — brands also covered with
+//                   no paid arrangement; named in the disclosure callout
+//                   alongside `paidBrands` when the feature is on.
 
-import type { SchemaVariant } from "../theme/schema";
+import type { PostSchemaVariant } from "../theme/schema";
 
 export type PostStatus = "published" | "scheduled";
+
+// How the post body (`Post.html`) is turned into DOM. "html" injects it
+// verbatim (already-sanitized article HTML — the generated-post contract and
+// the default); "markdown" runs it through the lightweight markdown renderer.
+export type BodyFormat = "html" | "markdown";
 
 export interface FaqItem {
   question: string;
@@ -49,12 +67,16 @@ export interface PostFrontmatter {
   lang: string | null;
   author: string;
   authorSlug: string;
-  schemaVariant: SchemaVariant | null;
+  schemaVariant: PostSchemaVariant | null;
   translationKey: string | null;
   faqSchema: Record<string, unknown> | null;
   faq: FaqItem[];
   coverImage: string | null;
   coverImageAlt: string | null;
+  // null = auto-detect from the body at render time (see `resolveBodyFormat`).
+  bodyFormat: BodyFormat | null;
+  paidBrands: string[];
+  otherBrands: string[];
 }
 
 export interface Post {

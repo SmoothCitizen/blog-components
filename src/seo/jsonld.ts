@@ -2,14 +2,17 @@
 // own brand (theme.brand_name on its own hostname).
 
 import type { FaqItem, Post } from "../content/types";
-import type { Author, SiteConfig } from "../site/schema";
+import type { Author, SiteConfig, SponsorConfig } from "../site/schema";
 import type { ThemeConfig } from "../theme/schema";
 import { absoluteUrl, authorUrl, postUrl } from "./urls";
 
 const SCHEMA_CONTEXT = "https://schema.org";
 
 type JsonObject = Record<string, unknown>;
-type SiteRef = Pick<SiteConfig, "canonical_hostname" | "language">;
+// `sponsor` is optional: present (non-null) only on a sponsor-disclosure site,
+// where the schema publisher is the configured publisher entity instead of the
+// blog's own brand.
+type SiteRef = Pick<SiteConfig, "canonical_hostname" | "language"> & { sponsor?: SponsorConfig | null };
 type ThemeRef = Pick<ThemeConfig, "brand_name" | "logo_key" | "schema_variant" | "tagline">;
 
 export function organizationNode(site: SiteRef, theme: ThemeRef): JsonObject {
@@ -23,11 +26,23 @@ export function organizationNode(site: SiteRef, theme: ThemeRef): JsonObject {
   return org;
 }
 
+// The publisher node for a sponsor-disclosure site: the configured legal
+// publisher entity, not the blog brand.
+export function sponsorOrganizationNode(sponsor: SponsorConfig): JsonObject {
+  return { "@type": "Organization", name: sponsor.publisherEntity, url: sponsor.attributionUrl };
+}
+
+function publisherNode(site: SiteRef, theme: ThemeRef): JsonObject {
+  return site.sponsor ? sponsorOrganizationNode(site.sponsor) : organizationNode(site, theme);
+}
+
 export function personNode(site: SiteRef, author: Pick<Author, "slug" | "name"> & Partial<Author>): JsonObject {
   const url = authorUrl(site, author.slug);
   const person: JsonObject = { "@type": "Person", "@id": url, name: author.name, url };
   if (author.title) person.jobTitle = author.title;
   if (author.bio) person.description = author.bio;
+  if (author.expertise && author.expertise.length > 0) person.knowsAbout = author.expertise;
+  if (site.sponsor) person.worksFor = { "@type": "Organization", name: site.sponsor.publisherEntity };
   return person;
 }
 
@@ -51,25 +66,41 @@ export function faqPageNode(items: readonly FaqItem[]): JsonObject | null {
 export function postJsonLd(post: Post, site: SiteRef, theme: ThemeRef, author: Author | undefined): JsonObject[] {
   const fm = post.frontmatter;
   const person = personNode(site, author ?? { slug: fm.authorSlug, name: fm.author });
-  const publisher = organizationNode(site, theme);
+  const publisher = publisherNode(site, theme);
   const url = postUrl(site, post.slug);
-  const article: JsonObject = {
-    "@context": SCHEMA_CONTEXT,
-    "@type": fm.schemaVariant ?? theme.schema_variant,
-    headline: fm.title,
-    mainEntityOfPage: { "@type": "WebPage", "@id": url },
-    url,
-    inLanguage: fm.lang ?? site.language,
-    datePublished: fm.publishAt,
-    dateModified: fm.updatedAt ?? fm.publishAt,
-    author: person,
-    publisher,
-  };
-  if (fm.description) article.description = fm.description;
-  if (fm.coverImage) article.image = absoluteUrl(site, fm.coverImage);
+  const variant = fm.schemaVariant ?? theme.schema_variant;
+  // A "Review" post emits schema.org Review (per-item): the reviewed item is
+  // the post's first paid brand, else the headline. Any other variant keeps
+  // the Article/BlogPosting shape.
+  const primary: JsonObject =
+    variant === "Review"
+      ? {
+          "@context": SCHEMA_CONTEXT,
+          "@type": "Review",
+          name: fm.title,
+          url,
+          datePublished: fm.publishAt,
+          author: person,
+          publisher,
+          itemReviewed: { "@type": "SoftwareApplication", name: fm.paidBrands[0] ?? fm.title },
+        }
+      : {
+          "@context": SCHEMA_CONTEXT,
+          "@type": variant,
+          headline: fm.title,
+          mainEntityOfPage: { "@type": "WebPage", "@id": url },
+          url,
+          inLanguage: fm.lang ?? site.language,
+          datePublished: fm.publishAt,
+          dateModified: fm.updatedAt ?? fm.publishAt,
+          author: person,
+          publisher,
+        };
+  if (fm.description && variant !== "Review") primary.description = fm.description;
+  if (fm.coverImage && variant !== "Review") primary.image = absoluteUrl(site, fm.coverImage);
 
   const blocks: JsonObject[] = [
-    article,
+    primary,
     { "@context": SCHEMA_CONTEXT, ...person },
     { "@context": SCHEMA_CONTEXT, ...publisher },
   ];
@@ -87,7 +118,7 @@ export function siteJsonLd(site: SiteRef & Pick<SiteConfig, "description">, them
     name: theme.brand_name,
     url: absoluteUrl(site, "/"),
     inLanguage: site.language,
-    publisher: organizationNode(site, theme),
+    publisher: publisherNode(site, theme),
   };
   const description = site.description ?? theme.tagline;
   if (description) blog.description = description;

@@ -2,8 +2,9 @@
 
 Design components for a blog that lives in its own repo: layout chrome, post page, index and
 pagination, author pages, about page, FAQ block, typography, the WCAG-guarded palette, SEO
-metadata, JSON-LD, sitemap, RSS and robots. Consumed by `customer-blog-template` (a Next.js 14
-static export served by Cloudflare Pages).
+metadata, JSON-LD, sitemap, RSS and robots. Consumed by the blog templates in this monorepo
+(both Next.js 14 static exports) so a front-end change lands in one place and reaches every
+blog built from either template.
 
 The package is TypeScript source with no build step. The consuming app lists it in
 `transpilePackages`.
@@ -48,13 +49,59 @@ rebuilds). A repo can stay on a known-good tag indefinitely.
 - `config/theme.json` — `src/theme/schema.ts`. The same keys the API stores for a blog theme;
   the API writes this file when a theme is saved.
 - `config/site.json` — `src/site/schema.ts`.
-- `content/posts/<slug>.mdx` — `src/content/types.ts`. YAML frontmatter + HTML body. The API's
-  publisher writes this shape.
+- `content/posts/<slug>.mdx` — `src/content/types.ts`. YAML frontmatter + body. When `bodyFormat`
+  is absent the renderer auto-detects it from the body (a leading HTML block tag → HTML, else
+  markdown); set `bodyFormat: "html" | "markdown"` to override. An HTML body is rendered verbatim;
+  a markdown body goes through `MarkdownBody`.
+
+### Body safety — bodies MUST be sanitized before they reach this package
+
+An HTML body is injected verbatim (`dangerouslySetInnerHTML`). **This package is NOT a
+sanitizer and performs no sanitization.** Every body it renders MUST already be sanitized by the
+producer that wrote it — the trust boundary is server-side (the API sanitizes generated bodies at
+the publish boundary). Never pass an unsanitized or user-supplied body to `PostArticle` /
+`PostBody`.
+
+## Per-site design & markup namespacing
+
+`config/theme.json` (`src/theme/schema.ts`) carries each site's look so it is not identical to
+every other site built from the same package: `palette`, `font_pair` (or custom `fonts.heading` /
+`fonts.body` stacks), `radius`, `space` (vertical rhythm), and three independent layout axes —
+`layout_variant` (post list: journal / grid / minimal), `header_variant` (classic / centered /
+compact) and `post_variant` (classic / wide / narrow). `class_prefix` namespaces every rendered
+class name and the matching stylesheet selectors (`classer` + `prefixStylesheet`), so two sites do
+not ship byte-identical markup. Every field is optional and defaults so that a config written for
+v0.1.0 renders byte-identically (empty prefix, default variants).
 - Visibility — `src/content/visibility.ts`. `status: "published"` AND `publishAt` <= build time.
   Fail-closed.
 
+## Sponsor-disclosure mode (opt-in)
+
+Every feature below is **off by default** — a plain blog renders exactly as it did at v0.1.0.
+A blog that carries paid placements turns the layer on in `config/site.json`:
+
+```json
+"features": { "sponsorDisclosure": true },
+"sponsor": {
+  "publisherEntity": "Example Publisher, Inc.",
+  "attributionUrl": "https://publisher.example.com",
+  "attributionText": "Built by Example Publisher",
+  "niche": "CRM software",
+  "contactEmail": "editorial@blog.example.com"
+}
+```
+
+With the feature on, the chrome mounts a site-wide disclosure banner, a single
+`rel="nofollow sponsored"` footer attribution link, and a `/disclosure` nav entry; a post that
+names `paidBrands` shows the per-post paid-placement callout above its byline; the /disclosure +
+/about page copy comes from `disclosurePageMarkdown` / `aboutPageMarkdown`; and the JSON-LD
+publisher becomes the configured publisher entity. All values come from the site's own config —
+the package hard-codes no publisher, product or site.
+
 ## What this package must never contain
 
-No secrets, no environment-specific hostnames, and no reference to any other site. Every
-absolute URL is built from the blog's own `canonical_hostname`. No disclosure banner and no
-sponsored or attribution link: this is the customer's own blog.
+No secrets, no environment-specific hostnames, and no reference to any specific other site,
+product or organization. Every absolute URL is built from the blog's own `canonical_hostname`
+or from the publisher/attribution values a consuming site sets in its own config. The
+sponsor-disclosure copy is brand-neutral: it names the configured site and publisher through
+substitution, never a hard-coded one.

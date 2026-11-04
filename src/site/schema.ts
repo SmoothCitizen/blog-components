@@ -7,6 +7,39 @@ export interface Author {
   name: string;
   title: string | null;
   bio: string | null;
+  // Areas of expertise surfaced on the bio page and as `knowsAbout` in the
+  // Person JSON-LD (an authority signal). Default []; ignored where empty.
+  expertise: string[];
+}
+
+// Opt-in feature flags. Every flag defaults OFF, so a plain blog (a customer's
+// own blog) renders exactly as before when the key is absent.
+export interface SiteFeatures {
+  // Turns on the sponsor-disclosure layer: the site-wide banner, the per-post
+  // paid-placement callout, the footer attribution line, and the /disclosure
+  // + /about editorial pages. A blog with paid placements must enable this.
+  sponsorDisclosure: boolean;
+}
+
+// Values the sponsor-disclosure layer renders. Required (and validated) only
+// when `features.sponsorDisclosure` is on — a disclosure page that named no
+// publisher would itself be a compliance hole, so the build fails instead.
+export interface SponsorConfig {
+  // Legal operating entity that publishes the site — named on /about and
+  // /disclosure and used as the JSON-LD `publisher`.
+  publisherEntity: string;
+  // The SINGLE attribution link target + its visible anchor text. Exactly one
+  // link to this URL appears on the site (the footer), carrying
+  // rel="nofollow sponsored".
+  attributionUrl: string;
+  attributionText: string;
+  // Editorial-niche descriptor woven into the disclosure/about copy.
+  niche: string | null;
+  // Published correction / takedown inbox named on /disclosure + /about.
+  contactEmail: string | null;
+  // Page paths (defaults "/disclosure" and "/about").
+  disclosurePath: string;
+  aboutPath: string;
 }
 
 export interface SiteConfig {
@@ -19,6 +52,9 @@ export interface SiteConfig {
   language: string;
   description: string | null;
   authors: Author[];
+  features: SiteFeatures;
+  // Present only when `features.sponsorDisclosure` is on; null otherwise.
+  sponsor: SponsorConfig | null;
 }
 
 // A bare hostname: dot-separated RFC-1123 labels, lowercase, no scheme/port/path.
@@ -52,6 +88,36 @@ function parseAuthor(value: unknown, index: number): Author {
     name: requiredString(raw, "name", where),
     title: optionalString(raw.title),
     bio: optionalString(raw.bio),
+    expertise: Array.isArray(raw.expertise)
+      ? raw.expertise.flatMap((v) => (typeof v === "string" && v.trim() ? [v.trim()] : []))
+      : [],
+  };
+}
+
+function parseFeatures(value: unknown): SiteFeatures {
+  const raw = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  return { sponsorDisclosure: raw.sponsorDisclosure === true };
+}
+
+// Validate the sponsor block ONLY when the feature is on. A missing publisher
+// or attribution target fails the build (the compliance-safe failure mode:
+// never ship a disclosure page with a blank publisher).
+function parseSponsor(value: unknown, enabled: boolean): SponsorConfig | null {
+  if (!enabled) return null;
+  const raw = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const where = "config/site.json sponsor";
+  const attributionUrl = requiredString(raw, "attributionUrl", where);
+  if (!/^https?:\/\//.test(attributionUrl)) {
+    throw new Error(`[site] sponsor.attributionUrl '${attributionUrl}' must be an absolute http(s) URL`);
+  }
+  return {
+    publisherEntity: requiredString(raw, "publisherEntity", where),
+    attributionUrl,
+    attributionText: optionalString(raw.attributionText) ?? attributionUrl.replace(/^https?:\/\//, ""),
+    niche: optionalString(raw.niche),
+    contactEmail: optionalString(raw.contactEmail),
+    disclosurePath: optionalString(raw.disclosurePath) ?? "/disclosure",
+    aboutPath: optionalString(raw.aboutPath) ?? "/about",
   };
 }
 
@@ -84,12 +150,16 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     seen.add(author.slug);
   }
 
+  const features = parseFeatures(s.features);
+
   return {
     site_name: requiredString(s, "site_name", where),
     canonical_hostname: hostname,
     language,
     description: optionalString(s.description),
     authors,
+    features,
+    sponsor: parseSponsor(s.sponsor, features.sponsorDisclosure),
   };
 }
 

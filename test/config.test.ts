@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { resolveFont, FONT_PAIRS, themeCss } from "../src/theme/css";
 import { parseTheme } from "../src/theme/schema";
+import { classer, prefixStylesheet } from "../src/theme/classes";
 import { parseSiteConfig } from "../src/site/schema";
 
 const SITE = {
@@ -35,6 +36,70 @@ describe("parseTheme", () => {
 
   it("requires a brand name", () => {
     expect(() => parseTheme({ accent_color: "#000000" })).toThrow(/brand_name/);
+  });
+});
+
+describe("parseTheme — per-site design knobs", () => {
+  it("defaults the new fields byte-compatibly when absent", () => {
+    const theme = parseTheme({ brand_name: "X" });
+    expect(theme).toMatchObject({
+      header_variant: "classic",
+      post_variant: "classic",
+      radius: "8px",
+      space: "18px",
+      class_prefix: "",
+      fonts: { heading: null, body: null },
+    });
+  });
+
+  it("reads custom fonts, radius/space, header/post variants, and a sanitized class prefix", () => {
+    const theme = parseTheme({
+      brand_name: "X",
+      fonts: { heading: "Inter, sans-serif", body: "Lora, serif" },
+      radius: "0",
+      space: "24px",
+      header_variant: "centered",
+      post_variant: "wide",
+      class_prefix: "Site A!!",
+    });
+    expect(theme.fonts).toEqual({ heading: "Inter, sans-serif", body: "Lora, serif" });
+    expect(theme).toMatchObject({ radius: "0", space: "24px", header_variant: "centered", post_variant: "wide" });
+    expect(theme.class_prefix).toBe("sitea"); // lowercased, non-[a-z0-9-] stripped
+  });
+
+  it("falls back to defaults for unknown header/post variants and a prefix that is not class-safe", () => {
+    const theme = parseTheme({ brand_name: "X", header_variant: "hero", post_variant: "fancy", class_prefix: "9lives" });
+    expect(theme.header_variant).toBe("classic");
+    expect(theme.post_variant).toBe("classic");
+    expect(theme.class_prefix).toBe(""); // must start with a letter
+  });
+});
+
+describe("class prefixing", () => {
+  it("prefixes class tokens and the matching stylesheet identically", () => {
+    const c = classer("acme");
+    expect(c("post-body")).toBe("acme-post-body");
+    expect(c("a", "b")).toBe("acme-a acme-b");
+    expect(classer("")("post-body")).toBe("post-body"); // empty = no prefix
+
+    const css = ".post-body h2{margin:0} .btn:hover{color:#fff} [data-layout=\"grid\"] .excerpt{}";
+    const out = prefixStylesheet(css, "acme");
+    expect(out).toContain(".acme-post-body h2");
+    expect(out).toContain(".acme-btn:hover");
+    expect(out).toContain(".acme-excerpt");
+    // attribute selectors, hex colors and numeric fragments are untouched
+    expect(out).toContain('[data-layout="grid"]');
+    expect(out).toContain("#fff");
+    expect(prefixStylesheet(css, "")).toBe(css); // empty = no-op
+  });
+
+  it("themeCss emits prefixed selectors + the layout variant blocks", () => {
+    const css = themeCss(parseTheme({ brand_name: "X", class_prefix: "acme", radius: "4px" }));
+    expect(css).toContain(".acme-post-body");
+    expect(css).toContain(".acme-site-header");
+    expect(css).toContain("--radius:4px");
+    expect(css).toContain('[data-header="centered"]');
+    expect(css).toContain('[data-post="wide"]');
   });
 });
 
