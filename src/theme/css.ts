@@ -283,8 +283,8 @@ function optionalCss(theme: ThemeCssInput): string {
         `[data-header="bar"] .site-header{background:var(--bg);border-bottom:1px solid var(--line);padding:21px 5%}\n` +
         `[data-header="bar"] .site-header .wrap{max-width:none;margin:0;padding:0;display:flex;justify-content:space-between;align-items:center;gap:32px}\n` +
         `[data-header="bar"] .site-header .brand{align-items:center;margin:0}\n` +
-        `[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px}\n` +
-        `[data-header="bar"] .site-nav a{color:var(--ink);text-decoration:none}\n` +
+        `[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px;align-items:center}\n` +
+        `[data-header="bar"] .site-nav a{color:var(--ink);text-decoration:none;display:flex;align-items:center;min-height:44px}[data-header="bar"] .site-nav a.nav-pill{min-height:0}\n` +
         `[data-header="bar"] .site-nav a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:6px}\n` +
         `@media (max-width:800px){[data-header="bar"] .site-header{padding:22px 6%}[data-header="bar"] .site-nav{gap:16px;font-size:14px}}` +
         logoShrink,

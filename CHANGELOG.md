@@ -8,6 +8,10 @@ All notable changes to the blog components package. Versions follow
 - **major** — anything a pinned repo must adapt to (a required key, a renamed export,
   a changed file layout, a changed visibility rule).
 
+## 0.3.1
+
+- `bar` header: nav links are vertically centred with the logo and any pill link (44px tap targets).
+
 ## [0.3.0] — 2026-11-04
 
 Minor: new optional theme surfaces only. A config that sets none of the new keys

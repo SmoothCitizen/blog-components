@@ -259,7 +259,8 @@ describe("bar header variant", () => {
     const css = themeCss(theme);
     expect(css).toContain('[data-header="bar"] .site-header{background:var(--bg);border-bottom:1px solid var(--line);padding:21px 5%}');
     expect(css).toContain('[data-header="bar"] .site-header .wrap{max-width:none');
-    expect(css).toContain('[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px}');
+    expect(css).toContain('[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px;align-items:center}');
+    expect(css).toContain('[data-header="bar"] .site-nav a{color:var(--ink);text-decoration:none;display:flex;align-items:center;min-height:44px}');
     expect(css).toContain("text-underline-offset:6px");
     expect(css).toContain("@media (max-width:800px){[data-header=\"bar\"] .site-header{padding:22px 6%}");
     // logo shrink at <=560px, present because logo_width is set
