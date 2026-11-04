@@ -1,0 +1,36 @@
+{
+  "name": "blog-components",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared, versioned design components for repo-per-customer blogs: layout chrome, post page, index, author pages, SEO metadata, JSON-LD, sitemap/RSS/robots, FAQ block, typography and the WCAG-guarded palette. Shipped as TypeScript source (the consuming Next.js app transpiles it), so a customer repo pins a tagged release as a git dependency with no build step and no registry auth.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./content": "./src/content/loader.ts"
+  },
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "scripts": {
+    "lint": "eslint src test --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "gray-matter": "4.0.3"
+  },
+  "peerDependencies": {
+    "next": ">=14.2.0 <15",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.16.13",
+    "@types/react": "18.3.12",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.35",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "5.6.3",
+    "vitest": "^4.1.8"
+  }
+}
