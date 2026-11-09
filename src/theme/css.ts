@@ -6,9 +6,28 @@
 // value can never inject arbitrary CSS.
 
 import { prefixStylesheet } from "./classes";
-import { AA_CONTRAST, contrastRatio, mix, normalizeHex, paletteCssVars, relativeLuminance, type PaletteSource } from "./palette";
+import {
+  AA_CONTRAST,
+  contrastRatio,
+  derivePalette,
+  hexToRgb,
+  mix,
+  normalizeHex,
+  paletteCssVars,
+  relativeLuminance,
+  type PaletteSource,
+} from "./palette";
 import {
   DEFAULT_FONT_PAIR,
+  DEFAULT_MONO_FONT,
+  DEFAULT_PATTERN,
+  PATTERN_IMAGE_EXTENSIONS,
+  PATTERN_VARIANTS,
+  parseHeadingWeight,
+  safeFontStack,
+  safeLetterSpacing,
+  safePublicPath,
+  type PatternVariant,
   DEFAULT_LAYOUT,
   DEFAULT_RADIUS,
   DEFAULT_SPACE,
@@ -74,6 +93,23 @@ type ThemeCssInput = PaletteSource &
       | "logo_width"
       | "hero"
       | "font_files"
+      | "post_list_variant"
+      | "pattern"
+      | "pattern_image_key"
+      | "heading_weight"
+      | "heading_case"
+      | "nav_case"
+      | "logo_case"
+      | "letter_spacing"
+      | "meta_style"
+      | "mono_font"
+      | "index_label"
+      | "footer_tagline"
+      | "drop_cap"
+      | "list_marker"
+      | "heading_accent"
+      | "logo_mark_key"
+      | "header_align"
     >
   >;
 
@@ -262,14 +298,19 @@ article.post h1{font-size:34px;margin:8px 0 6px}
 `;
   // Optional v0.3.0 blocks, appended ONLY when their feature is active so a
   // v0.2.0 config's stylesheet is byte-identical.
-  const extra = optionalCss(theme);
+  const extra = optionalCss(theme, s);
   const full = extra ? `${css}${extra}` : css;
   const prefixed = prefixStylesheet(full.trim(), theme.class_prefix);
   // @font-face rules (v0.5.0) are prepended AFTER class prefixing: they carry
   // no class selectors, and the prefixer would otherwise rewrite the `.woff2`
   // in a src url. Absent font files → the stylesheet is unchanged.
   const faces = fontFaceCss(theme.font_files ?? []);
-  return faces ? `${faces}\n${prefixed}` : prefixed;
+  // The custom pattern image url (v0.6.0) is appended after prefixing for the
+  // same reason (the `.svg` / `.png` extension would be rewritten): the
+  // prefixed pattern rules read it through the `--pattern-image` variable.
+  const patternImage = patternImageVar(theme.pattern_image_key);
+  const withImage = patternImage ? `${prefixed}\n${patternImage}` : prefixed;
+  return faces ? `${faces}\n${withImage}` : withImage;
 }
 
 // One `@font-face` rule per self-hosted font file (v0.5.0), font-display: swap,
@@ -291,9 +332,10 @@ function fontFormat(src: string): "woff2" | "woff" {
   return src.toLowerCase().endsWith(".woff2") ? "woff2" : "woff";
 }
 
-// The nav-pill, logo-width and `bar` header rules. Each is emitted only when the
-// theme opts into it; a v0.2.0 config produces "".
-function optionalCss(theme: ThemeCssInput): string {
+// The nav-pill, logo-width and `bar` header rules (v0.3.0+), and the v0.6.0
+// design knobs. Each is emitted only when the theme opts into it; a config that
+// sets none of them produces "" (byte-identical stylesheet).
+function optionalCss(theme: ThemeCssInput, surface: ResolvedSurface): string {
   const parts: string[] = [];
 
   if ((theme.nav_links ?? []).some((l) => l.style === "pill")) {
@@ -306,8 +348,14 @@ function optionalCss(theme: ThemeCssInput): string {
   if ((theme.nav_links ?? []).some((l) => l.type === "language_switch")) {
     parts.push(
       `/* language switch (v0.4.0) */\n` +
-        `.site-nav .language-switch{display:inline-flex;gap:12px;align-items:center}\n` +
-        `.site-nav .language-switch [aria-current]{color:var(--muted);text-decoration:none}`,
+        `.site-nav .language-switch{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center}\n` +
+        // v0.6.1: every entry is a separate >= 44px tap target, and the current
+        // language is marked (bold + accent underline; a filled pill in pill
+        // style) instead of a dimmed color that read as "disabled".
+        `.site-nav .language-switch a,.site-nav .language-switch [aria-current]{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}\n` +
+        `[data-header] .site-nav .language-switch .nav-pill{min-height:36px;padding-top:0;padding-bottom:0}\n` +
+        `.site-nav .language-switch [aria-current]{color:var(--ink);font-weight:700;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:6px}\n` +
+        `.site-nav .language-switch .nav-pill[aria-current]{background:var(--ink);color:var(--bg);border-color:var(--ink);text-decoration:none}`,
     );
   }
 
@@ -345,18 +393,260 @@ function optionalCss(theme: ThemeCssInput): string {
     parts.push(
       `/* header variant: bar — full-bleed, logo left + nav right, surface bg (v0.3.0) */\n` +
         `[data-header="bar"] .site-header{background:var(--bg);border-bottom:1px solid var(--line);padding:21px 5%}\n` +
-        `[data-header="bar"] .site-header .wrap{max-width:none;margin:0;padding:0;display:flex;justify-content:space-between;align-items:center;gap:32px}\n` +
+        // v0.6.1: the row and the nav wrap, so a phone with several nav entries
+        // (plus a language pill) stacks the nav under the logo instead of
+        // pushing the page sideways. Unchanged on a row that fits.
+        `[data-header="bar"] .site-header .wrap{max-width:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px 32px}\n` +
         `[data-header="bar"] .site-header .brand{align-items:center;margin:0}\n` +
-        `[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px;align-items:center}\n` +
+        `[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px;align-items:center;flex-wrap:wrap}\n` +
         `[data-header="bar"] .site-nav a{color:var(--ink);text-decoration:none;display:flex;align-items:center;min-height:44px}[data-header="bar"] .site-nav a.nav-pill{min-height:0}\n` +
         `[data-header="bar"] .site-nav a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:6px}\n` +
-        `@media (max-width:800px){[data-header="bar"] .site-header{padding:22px 6%}[data-header="bar"] .site-nav{gap:16px;font-size:14px}}` +
+        `@media (max-width:800px){[data-header="bar"] .site-header{padding:22px 6%}[data-header="bar"] .site-nav{gap:4px 16px;font-size:14px}}` +
         logoShrink,
     );
   }
+
+  parts.push(...designKnobCss(theme, surface));
 
   // The base stylesheet already ends with one newline, so a single leading
   // newline here yields exactly one blank-line separator (the block style used
   // throughout the stylesheet).
   return parts.length ? `\n${parts.join("\n\n")}\n` : "";
+}
+
+// ---------------------------------------------------------------------------
+// v0.6.0 design knobs
+// ---------------------------------------------------------------------------
+
+// How strongly each built-in motif mixes the guarded accent into the page bg
+// (before the contrast guard steps it down). Thin-line motifs can carry more
+// color than the zig-zag, which fills half its area.
+export const PATTERN_WEIGHTS: Readonly<Record<Exclude<PatternVariant, "none">, number>> = {
+  dots: 0.4,
+  grid: 0.22,
+  pinstripe: 0.2,
+  herringbone: 0.08,
+};
+export const PATTERN_WEIGHT_STEP = 0.02;
+// The custom-image veil: the surface color laid over the image at this alpha
+// (or more, until the text contrast holds).
+export const PATTERN_VEIL_MIN_ALPHA = 0.82;
+export const PATTERN_VEIL_STEP = 0.02;
+
+// True when every `text` color stays readable on `color`: at least AA, or — for
+// a text color already below AA on the plain `base` surface — no worse than it
+// was there.
+function keepsTextContrast(color: string, base: string, texts: readonly string[]): boolean {
+  return texts.every((text) => contrastRatio(text, color) >= Math.min(AA_CONTRAST, contrastRatio(text, base)));
+}
+
+// The motif color for a built-in pattern: the guarded accent mixed into the
+// page bg at the pattern's weight, stepped down until the page ink AND muted
+// text keep their contrast on it — against both the page bg (post header) and
+// the panel (hero) — because motif pixels sit directly under text. Null when no
+// weight passes: the motif is then not drawn at all.
+export function patternInk(
+  pattern: Exclude<PatternVariant, "none">,
+  accent: string,
+  surface: Pick<ResolvedSurface, "bg" | "ink" | "muted" | "panel">,
+): string | null {
+  const texts = [surface.ink, surface.muted];
+  for (let w = PATTERN_WEIGHTS[pattern]; w > 0.005; w -= PATTERN_WEIGHT_STEP) {
+    const color = mix(accent, surface.bg, w);
+    if (color === surface.bg) break;
+    if (keepsTextContrast(color, surface.bg, texts) && keepsTextContrast(color, surface.panel, texts)) return color;
+  }
+  return null;
+}
+
+// The veil alpha for a custom pattern image: the smallest alpha (>= the
+// minimum) at which a fully black AND a fully white image pixel, seen through
+// the veil, still keep the ink + muted contrast on every surface the motif is
+// drawn on (the page bg for the post header, the panel for the hero). 1 = the
+// image is fully covered (always safe).
+export function patternVeilAlpha(surfaces: readonly string[], texts: readonly string[]): number {
+  for (let step = 0; ; step += 1) {
+    const a = Math.round((PATTERN_VEIL_MIN_ALPHA + step * PATTERN_VEIL_STEP) * 100) / 100;
+    if (a >= 1) return 1;
+    const ok = surfaces.every((bg) => ["#000000", "#ffffff"].every((px) => keepsTextContrast(mix(bg, px, a), bg, texts)));
+    if (ok) return a;
+  }
+}
+
+function rgba(hex: string, alpha: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// `:root{--pattern-image:url("/…")}` for a custom motif, or "". The path is
+// re-validated with `safePublicPath` (svg/png/webp), so it can never close the
+// url(), the rule or the <style> tag.
+export function patternImageVar(key: string | null | undefined): string {
+  const path = safePublicPath(key, PATTERN_IMAGE_EXTENSIONS);
+  return path ? `:root{--pattern-image:url("/${path}")}` : "";
+}
+
+// The background layers for each built-in motif (all drawn in --pattern-ink).
+const PATTERN_LAYERS: Readonly<Record<Exclude<PatternVariant, "none">, string>> = {
+  dots: "background-image:radial-gradient(var(--pattern-ink) 1.3px,transparent 1.8px);background-size:18px 18px",
+  grid:
+    "background-image:linear-gradient(var(--pattern-ink) 1px,transparent 1px),linear-gradient(90deg,var(--pattern-ink) 1px,transparent 1px);background-size:24px 24px",
+  pinstripe: "background-image:repeating-linear-gradient(90deg,var(--pattern-ink) 0 1px,transparent 1px 10px)",
+  herringbone:
+    "background-image:linear-gradient(135deg,var(--pattern-ink) 25%,transparent 25%),linear-gradient(225deg,var(--pattern-ink) 25%,transparent 25%),linear-gradient(315deg,var(--pattern-ink) 25%,transparent 25%),linear-gradient(45deg,var(--pattern-ink) 25%,transparent 25%);" +
+    "background-position:-12px 0,-12px 0,0 0,0 0;background-size:24px 24px",
+};
+
+// True when the theme draws a motif (a valid custom image, or a built-in
+// pattern). The post page wraps its header in `.post-header` only then.
+export function hasPattern(theme: Partial<Pick<ThemeConfig, "pattern" | "pattern_image_key">>): boolean {
+  if (safePublicPath(theme.pattern_image_key, PATTERN_IMAGE_EXTENSIONS)) return true;
+  return PATTERN_VARIANTS.some((p) => p !== "none" && p === theme.pattern);
+}
+
+function patternCss(theme: ThemeCssInput, s: ResolvedSurface): string | null {
+  // The post header becomes a padded box only when a motif is drawn on it.
+  const box =
+    `.post-header{padding:22px 20px;margin:22px 0 6px;border:1px solid var(--line);border-radius:var(--radius)}\n` +
+    `.post-header h1{margin-top:0}`;
+  if (safePublicPath(theme.pattern_image_key, PATTERN_IMAGE_EXTENSIONS)) {
+    const alpha = patternVeilAlpha([s.bg, s.panel], [s.ink, s.muted]);
+    const veil = (hex: string) => `linear-gradient(${rgba(hex, alpha)},${rgba(hex, alpha)})`;
+    return (
+      `/* background motif: custom image under a surface veil (v0.6.0) */\n` +
+      `.index-hero{background-image:${veil(s.panel)},var(--pattern-image)}\n` +
+      `.post-header{background-image:${veil(s.bg)},var(--pattern-image)}\n` +
+      box
+    );
+  }
+  const pattern = PATTERN_VARIANTS.find((p) => p === theme.pattern) ?? DEFAULT_PATTERN;
+  if (pattern === "none") return null;
+  const ink = patternInk(pattern, derivePalette(theme, s.bg).accent, s);
+  if (!ink) return null;
+  return (
+    `/* background motif: ${pattern} (v0.6.0) */\n` +
+    `.index-hero,.post-header{--pattern-ink:${ink};${PATTERN_LAYERS[pattern]}}\n` +
+    box
+  );
+}
+
+function designKnobCss(theme: ThemeCssInput, s: ResolvedSurface): string[] {
+  const parts: string[] = [];
+  const spacing = safeLetterSpacing(theme.letter_spacing);
+  const upper = `text-transform:uppercase${spacing ? `;letter-spacing:${spacing}` : ""}`;
+
+  if (theme.post_list_variant === "cards") {
+    const card = "[data-layout] .post-cards .post-card";
+    parts.push(
+      `/* post list: cards (v0.6.0) */\n` +
+        `[data-layout] .post-list.post-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:20px;margin:28px 0}\n` +
+        `${card}{position:relative;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:8px;margin:0;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 20px -12px rgba(0,0,0,.28);transition:transform .15s ease,box-shadow .15s ease}\n` +
+        `${card}:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(0,0,0,.08),0 14px 28px -14px rgba(0,0,0,.34)}\n` +
+        `${card}:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n` +
+        `${card} h2{font-size:21px;margin:0;line-height:1.25}\n` +
+        `${card} h2 a{color:var(--ink)}\n` +
+        `${card} h2 a::after{content:"";position:absolute;inset:0;border-radius:inherit}\n` +
+        `${card} h2 a:focus{outline:none}\n` +
+        `${card} .post-meta{margin:0}\n` +
+        `${card} .excerpt{display:block;margin:0;font-size:16px;color:${s.softInk}}\n` +
+        `${card} .post-card-byline a{position:relative;z-index:1}\n` +
+        `${card} .post-card-cta{margin-top:auto;padding-top:6px;color:var(--accent);font-weight:600;font-size:15px}\n` +
+        `@media (prefers-reduced-motion:reduce){${card}{transition:none}${card}:hover{transform:none}}`,
+    );
+  }
+
+  const pattern = patternCss(theme, s);
+  if (pattern) parts.push(pattern);
+
+  const weight = parseHeadingWeight(theme.heading_weight);
+  if (weight) {
+    parts.push(
+      `/* heading weight (v0.6.0) */\n` + `h1,h2,h3,h4,[data-layout] .post-list h2,.post-faq dt{font-weight:${weight}}`,
+    );
+  }
+  if (theme.heading_case === "uppercase") {
+    parts.push(`/* heading case (v0.6.0) */\nh1,h2,h3,h4{${upper}}`);
+  }
+  if (theme.nav_case === "uppercase") {
+    parts.push(`/* nav case (v0.6.0) */\n.site-nav{${upper}}`);
+  }
+  if (theme.logo_case === "uppercase") {
+    parts.push(`/* logo case (v0.6.0) */\n.site-header .brand .name,.site-footer .footer-name{${upper}}`);
+  }
+  if (theme.meta_style === "mono") {
+    const mono = safeFontStack(theme.mono_font) ?? DEFAULT_MONO_FONT;
+    parts.push(
+      `/* mono metadata (v0.6.0) */\n` +
+        `.post-meta,.index-label,.index-hero .index-hero-eyebrow,.post-card-cta{font-family:${mono};font-size:13px;letter-spacing:.02em}`,
+    );
+  }
+
+  if (theme.hero?.eyebrow) {
+    parts.push(
+      `/* hero eyebrow (v0.6.0) */\n` +
+        `.index-hero .index-hero-eyebrow{margin:0 0 10px;color:var(--muted);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}`,
+    );
+  }
+  if (theme.index_label) {
+    parts.push(
+      `/* index label divider (v0.6.0) */\n` +
+        `.index-label{display:flex;align-items:center;gap:14px;margin:34px 0 0;color:var(--muted);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}\n` +
+        `.index-label::after{content:"";flex:1;height:1px;background:var(--line)}\n` +
+        `.index-label+.post-list{margin-top:14px}`,
+    );
+  }
+  if (theme.logo_mark_key || theme.footer_tagline) {
+    parts.push(
+      `/* footer brand + tagline (v0.6.0) */\n` +
+        `.site-footer .footer-brand{display:flex;align-items:center;gap:8px;margin:0 0 8px;color:var(--ink);font-family:var(--font-heading);font-weight:700;font-size:16px}\n` +
+        `.site-footer .footer-tagline{margin:0 0 8px;color:var(--muted)}`,
+    );
+  }
+  if (theme.logo_mark_key) {
+    parts.push(
+      `/* logo mark (v0.6.0) */\n` +
+        `.site-header .brand>a{display:inline-flex;align-items:center;gap:10px}\n` +
+        `.logo-mark{display:block;height:28px;width:auto}\n` +
+        `.site-footer .logo-mark{height:22px}`,
+    );
+  }
+
+  if (theme.drop_cap) {
+    const first =
+      `html:not([dir="rtl"]) .post-body>p:first-of-type::first-letter,` +
+      `html:not([dir="rtl"]) .post-body>article>p:first-of-type::first-letter`;
+    parts.push(
+      `/* drop cap (v0.6.0) */\n` +
+        `${first}{float:left;font-family:var(--font-heading);font-size:3.4em;line-height:.85;font-weight:700;color:var(--accent);margin:.06em .1em 0 0}`,
+    );
+  }
+  if (theme.list_marker === "dash") {
+    parts.push(
+      `/* list marker: dash (v0.6.0) */\n` +
+        `.post-body ul{list-style:none;padding-inline-start:1.4em}\n` +
+        `.post-body ul>li{position:relative}\n` +
+        `.post-body ul>li::before{content:"\\2013";position:absolute;inset-inline-start:-1.3em;color:var(--muted)}`,
+    );
+  } else if (theme.list_marker === "accent") {
+    parts.push(`/* list marker: accent (v0.6.0) */\n.post-body li::marker{color:var(--accent)}`);
+  }
+  if (theme.heading_accent) {
+    parts.push(
+      `/* heading accent tick (v0.6.0) */\n` +
+        `.post-body h2::before{content:"";display:block;width:32px;height:3px;margin:0 0 12px;background:var(--accent);border-radius:2px}`,
+    );
+  }
+
+  if (theme.header_align === "content") {
+    // Constrain the header row to the content column (.wrap). The non-bar
+    // variants already sit on it; this pulls the full-bleed `bar` in. On a
+    // phone the column is narrow, so the nav wraps under the brand instead of
+    // pushing the page sideways.
+    parts.push(
+      `/* header aligned to the content column (v0.6.0) */\n` +
+        `[data-header] .site-header .wrap{max-width:820px;margin:0 auto;padding:0 20px;flex-wrap:wrap;row-gap:12px}\n` +
+        `[data-header="bar"] .site-header{padding-left:0;padding-right:0}`,
+    );
+  }
+  return parts;
 }

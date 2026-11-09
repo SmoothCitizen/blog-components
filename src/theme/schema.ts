@@ -95,6 +95,8 @@ export interface ThemeHeroCta {
   href: string;
 }
 export interface ThemeHero {
+  // Optional small text above the title (v0.6.0), plain text <= HERO_EYEBROW_MAX.
+  eyebrow: string | null;
   title: string;
   subtitle: string | null;
   image_key: string | null;
@@ -122,6 +124,32 @@ export interface FontFile {
   weight: string;
   style: FontFileStyle;
 }
+
+// v0.6.0 design knobs. Every one is optional and defaults to the v0.5.0 look,
+// so a config that sets none of them renders byte-identically.
+//   - `post_list_variant`: "list" (the existing layout-variant list) or
+//     "cards" (raised cards: date, reading time, title, excerpt, byline and a
+//     "Read →" affordance whose text is `post_list_cta_label`).
+//   - `pattern`: a pure-CSS background motif behind the index hero and the post
+//     header, drawn in an accent-tinted color that is contrast-checked against
+//     the page ink/muted text; `pattern_image_key` (svg/png/webp under
+//     `public/`) supplies a custom motif instead, under a surface-colored veil.
+//   - typography: `heading_weight` (300-900), `heading_case` / `nav_case` /
+//     `logo_case` ("uppercase" with the shared `letter_spacing`), and
+//     `meta_style: "mono"` (small labels/metadata in `mono_font`).
+//   - labels: `index_label` (a divider above the index post list) and
+//     `footer_tagline`; the hero carries an optional `eyebrow`.
+//   - post body: `drop_cap`, `list_marker`, `heading_accent`.
+//   - `date_format`: "iso" (YYYY-MM-DD) or "long" (Intl, page language, UTC).
+//   - `logo_mark_key`: a small image before the text wordmark (header + footer).
+//   - `header_align`: "full" or "content" (header row on the content column).
+export type PostListVariant = "list" | "cards";
+export type PatternVariant = "none" | "dots" | "grid" | "pinstripe" | "herringbone";
+export type TextCase = "none" | "uppercase";
+export type MetaStyle = "default" | "mono";
+export type ListMarker = "default" | "dash" | "accent";
+export type DateFormat = "iso" | "long";
+export type HeaderAlign = "full" | "content";
 
 export interface ThemeConfig {
   brand_name: string;
@@ -164,6 +192,33 @@ export interface ThemeConfig {
   // Optional self-hosted font files (v0.5.0, see FontFile). [] = none (fonts
   // come only from the `font_pair` / `fonts` system stacks, as before).
   font_files: FontFile[];
+  // v0.6.0 design knobs (see the PostListVariant comment above).
+  post_list_variant: PostListVariant;
+  // The card CTA text; null = DEFAULT_POST_LIST_CTA_LABEL.
+  post_list_cta_label: string | null;
+  pattern: PatternVariant;
+  // A path under `public/` (svg/png/webp). When set it is the motif (it wins
+  // over `pattern`).
+  pattern_image_key: string | null;
+  // 300-900 in steps of 100; null = the browser's default heading weight.
+  heading_weight: number | null;
+  heading_case: TextCase;
+  nav_case: TextCase;
+  logo_case: TextCase;
+  // A CSS length applied as letter-spacing wherever a `*_case` is uppercase;
+  // null = no extra tracking.
+  letter_spacing: string | null;
+  meta_style: MetaStyle;
+  // A font stack (validated like `fonts`); null = DEFAULT_MONO_FONT.
+  mono_font: string | null;
+  index_label: string | null;
+  footer_tagline: string | null;
+  drop_cap: boolean;
+  list_marker: ListMarker;
+  heading_accent: boolean;
+  date_format: DateFormat;
+  logo_mark_key: string | null;
+  header_align: HeaderAlign;
 }
 
 export const LAYOUT_VARIANTS: readonly LayoutVariant[] = ["journal", "grid", "minimal"];
@@ -195,6 +250,30 @@ export const FONT_FILE_EXTENSIONS: readonly string[] = ["woff2", "woff"];
 export const FONT_FILE_STYLES: readonly FontFileStyle[] = ["normal", "italic"];
 export const DEFAULT_FONT_WEIGHT = "400";
 export const DEFAULT_FONT_STYLE: FontFileStyle = "normal";
+export const HERO_EYEBROW_MAX = 60;
+export const POST_LIST_VARIANTS: readonly PostListVariant[] = ["list", "cards"];
+export const DEFAULT_POST_LIST_VARIANT: PostListVariant = "list";
+export const POST_LIST_CTA_LABEL_MAX = 30;
+export const DEFAULT_POST_LIST_CTA_LABEL = "Read \u2192";
+export const PATTERN_VARIANTS: readonly PatternVariant[] = ["none", "dots", "grid", "pinstripe", "herringbone"];
+export const DEFAULT_PATTERN: PatternVariant = "none";
+export const PATTERN_IMAGE_EXTENSIONS: readonly string[] = ["svg", "png", "webp"];
+export const HEADING_WEIGHT_MIN = 300;
+export const HEADING_WEIGHT_MAX = 900;
+export const TEXT_CASES: readonly TextCase[] = ["none", "uppercase"];
+export const DEFAULT_TEXT_CASE: TextCase = "none";
+export const META_STYLES: readonly MetaStyle[] = ["default", "mono"];
+export const DEFAULT_META_STYLE: MetaStyle = "default";
+export const DEFAULT_MONO_FONT = 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
+export const INDEX_LABEL_MAX = 40;
+export const FOOTER_TAGLINE_MAX = 120;
+export const LIST_MARKERS: readonly ListMarker[] = ["default", "dash", "accent"];
+export const DEFAULT_LIST_MARKER: ListMarker = "default";
+export const DATE_FORMATS: readonly DateFormat[] = ["iso", "long"];
+export const DEFAULT_DATE_FORMAT: DateFormat = "iso";
+export const LOGO_MARK_EXTENSIONS: readonly string[] = HERO_IMAGE_EXTENSIONS;
+export const HEADER_ALIGNS: readonly HeaderAlign[] = ["full", "content"];
+export const DEFAULT_HEADER_ALIGN: HeaderAlign = "full";
 
 const optionalString = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
@@ -337,6 +416,7 @@ export function parseHero(value: unknown): ThemeHero | null {
   const title = boundedText(raw.title, HERO_TITLE_MAX);
   if (!title) return null;
   return {
+    eyebrow: boundedText(raw.eyebrow, HERO_EYEBROW_MAX),
     title,
     subtitle: boundedText(raw.subtitle, HERO_SUBTITLE_MAX),
     image_key: safePublicPath(raw.image_key, HERO_IMAGE_EXTENSIONS),
@@ -432,7 +512,40 @@ export function parseTheme(raw: unknown): ThemeConfig {
     contact_email: optionalString(t.contact_email),
     hero: parseHero(t.hero),
     font_files: parseFontFiles(t.font_files),
+    post_list_variant: oneOf(POST_LIST_VARIANTS, t.post_list_variant, DEFAULT_POST_LIST_VARIANT),
+    post_list_cta_label: boundedText(t.post_list_cta_label, POST_LIST_CTA_LABEL_MAX),
+    pattern: oneOf(PATTERN_VARIANTS, t.pattern, DEFAULT_PATTERN),
+    pattern_image_key: safePublicPath(t.pattern_image_key, PATTERN_IMAGE_EXTENSIONS),
+    heading_weight: parseHeadingWeight(t.heading_weight),
+    heading_case: oneOf(TEXT_CASES, t.heading_case, DEFAULT_TEXT_CASE),
+    nav_case: oneOf(TEXT_CASES, t.nav_case, DEFAULT_TEXT_CASE),
+    logo_case: oneOf(TEXT_CASES, t.logo_case, DEFAULT_TEXT_CASE),
+    letter_spacing: safeLetterSpacing(t.letter_spacing),
+    meta_style: oneOf(META_STYLES, t.meta_style, DEFAULT_META_STYLE),
+    mono_font: safeFontStack(t.mono_font),
+    index_label: boundedText(t.index_label, INDEX_LABEL_MAX),
+    footer_tagline: boundedText(t.footer_tagline, FOOTER_TAGLINE_MAX),
+    drop_cap: t.drop_cap === true,
+    list_marker: oneOf(LIST_MARKERS, t.list_marker, DEFAULT_LIST_MARKER),
+    heading_accent: t.heading_accent === true,
+    date_format: oneOf(DATE_FORMATS, t.date_format, DEFAULT_DATE_FORMAT),
+    logo_mark_key: safePublicPath(t.logo_mark_key, LOGO_MARK_EXTENSIONS),
+    header_align: oneOf(HEADER_ALIGNS, t.header_align, DEFAULT_HEADER_ALIGN),
   };
+}
+
+// An allow-listed enum value, or the default for anything else (including a
+// wrong type) — an invalid knob is dropped on its own, never thrown.
+function oneOf<T extends string>(allowed: readonly T[], value: unknown, fallback: T): T {
+  return allowed.find((v) => v === value) ?? fallback;
+}
+
+// A heading weight is an integer 300-900 in steps of 100 (a numeric string is
+// accepted); anything else is null (the default weight).
+export function parseHeadingWeight(value: unknown): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+  if (!Number.isInteger(n) || n % 100 !== 0) return null;
+  return n >= HEADING_WEIGHT_MIN && n <= HEADING_WEIGHT_MAX ? n : null;
 }
 
 // A class prefix must be a safe class-name fragment (letters/digits/hyphens):
@@ -459,4 +572,15 @@ export function safeFontStack(value: unknown): string | null {
 export function safeLength(value: unknown): string | null {
   const v = optionalString(value);
   return v && LENGTH_RE.test(v) ? v : null;
+}
+
+// Letter-spacing (v0.6.0): `0`, or an optionally negative length in em/rem/px
+// with at most two integer digits and three decimals ("0.04em", "-0.5px",
+// ".1em"). Interpolated into the stylesheet, so it is allow-listed by pattern —
+// nothing else (no `;`, `}`, units like `vw`, or keywords) can get through.
+const LETTER_SPACING_RE = /^(0|-?(\d{1,2}(\.\d{1,3})?|\.\d{1,3})(em|rem|px))$/;
+
+export function safeLetterSpacing(value: unknown): string | null {
+  const v = optionalString(value);
+  return v && LETTER_SPACING_RE.test(v) ? v : null;
 }

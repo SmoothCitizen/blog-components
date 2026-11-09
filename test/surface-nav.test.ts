@@ -259,7 +259,9 @@ describe("bar header variant", () => {
     const css = themeCss(theme);
     expect(css).toContain('[data-header="bar"] .site-header{background:var(--bg);border-bottom:1px solid var(--line);padding:21px 5%}');
     expect(css).toContain('[data-header="bar"] .site-header .wrap{max-width:none');
-    expect(css).toContain('[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px;align-items:center}');
+    expect(css).toContain('[data-header="bar"] .site-nav{margin-top:0;gap:32px;font-size:15px;align-items:center;flex-wrap:wrap}');
+    // v0.6.1: the row wraps on a phone (nav under the logo, no sideways scroll)
+    expect(css).toContain('[data-header="bar"] .site-header .wrap{max-width:none;margin:0;padding:0;display:flex;flex-wrap:wrap;');
     expect(css).toContain('[data-header="bar"] .site-nav a{color:var(--ink);text-decoration:none;display:flex;align-items:center;min-height:44px}');
     expect(css).toContain("text-underline-offset:6px");
     expect(css).toContain("@media (max-width:800px){[data-header=\"bar\"] .site-header{padding:22px 6%}");

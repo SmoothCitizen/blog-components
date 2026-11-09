@@ -92,7 +92,7 @@ A blog that sets none of these renders byte-identically to v0.3.1.
 | Key | Type | Notes |
 |---|---|---|
 | `logo_href` | `/`-relative or `https://` | Target for the header logo/brand link; unset = `/` (home). Validated like `nav_links.href` (`javascript:`/`data:`/`http:`/`//` rejected). An external `https://` target gets `rel="noopener"`. The link's aria-label stays `"<brand> home"`. |
-| `nav_links[].type: "language_switch"` | enum value | A nav entry that renders the language switcher (links/pill to the site's languages or a post's siblings) instead of a plain link. Carries no `label`/`href`. Hidden when the site has a single language. Plain entries default to `type: "link"` and are unchanged. |
+| `nav_links[].type: "language_switch"` | enum value | A nav entry that renders the language switcher (links/pill to the site's languages or a post's siblings) instead of a plain link. Carries no `label`/`href`. Hidden when the site has a single language. Plain entries default to `type: "link"` and are unchanged. Each entry is a ≥ 44px tap target; the current language is marked (`aria-current`, bold + accent underline, or a filled pill). The per-post switch above a translated post's title is styled inline, so it works whether or not the theme has this entry (v0.6.1). |
 
 ### v0.5.0 keys — index hero + self-hosted fonts (all optional)
 
@@ -120,6 +120,69 @@ A blog that sets neither renders byte-identically to v0.4.0.
   "fonts": { "heading": "\"Example Sans\", system-ui, sans-serif", "body": null }
 }
 ```
+
+### v0.6.0 keys — design knobs (all optional)
+
+A blog that sets none of these (or sets each to its default) renders byte-identically to v0.5.0
+(asserted against `test/fixtures/v0_5_0-markup.json`). Every key is validated on its own: an
+invalid value is dropped (the default is used) and never throws; enum keys are allow-listed and
+every value that reaches the stylesheet is pattern-checked, so a values file cannot inject CSS.
+
+| Key | Values (default first) | Notes |
+|---|---|---|
+| `post_list_variant` | `"list"` \| `"cards"` | `cards`: raised cards — date + reading time (`N min read`, from the body word count; unspaced scripts counted per character), title (one stretched link per card), excerpt, byline, and a visual CTA. Overrides `layout_variant` for the list. |
+| `post_list_cta_label` | text ≤ 30 chars | The card CTA; unset = `Read →`. Rendered `aria-hidden` (the title link names the post). |
+| `pattern` | `"none"` \| `"dots"` \| `"grid"` \| `"pinstripe"` \| `"herringbone"` | Pure-CSS motif behind the index hero and the post header (the post title block is wrapped in `.post-header` only when a motif is set). Drawn in the guarded accent mixed into the page bg, stepped down until the ink and muted text keep their contrast on it (dropped if nothing passes). |
+| `pattern_image_key` | path under `public/` (`.svg` / `.png` / `.webp`) | A custom motif instead of `pattern` (wins when both are set). Validated by `safePublicPath`; drawn under a surface-colored veil whose alpha is computed so text keeps its contrast over any image pixel. |
+| `heading_weight` | `300`–`900`, step 100 | Unset = the browser's heading weight. |
+| `heading_case` / `nav_case` / `logo_case` | `"none"` \| `"uppercase"` | Headings (h1–h4) / header nav / text wordmark (header + footer). |
+| `letter_spacing` | `0` or a length like `"0.04em"`, `"-0.5px"`, `".1em"` (em/rem/px, ≤ 2 integer digits, ≤ 3 decimals) | Applied wherever a `*_case` is `uppercase`; alone it does nothing. |
+| `meta_style` | `"default"` \| `"mono"` | `mono`: post metadata, the index label, the hero eyebrow and the card CTA use `mono_font`. |
+| `mono_font` | font stack (same validation as `fonts`) | Unset = a system monospace stack. Used only with `meta_style: "mono"`. |
+| `hero.eyebrow` | text ≤ 60 chars | Small label above the hero title. |
+| `index_label` | text ≤ 40 chars | A divider label (e.g. `Latest`) above the index post list. |
+| `footer_tagline` | text ≤ 120 chars | A line in the footer above the copyright. |
+| `drop_cap` | boolean (`false`) | First letter of the post body's first paragraph, in the accent. Off on rtl pages. |
+| `list_marker` | `"default"` \| `"dash"` \| `"accent"` | Post-body list bullets: an en dash, or accent-colored markers. |
+| `heading_accent` | boolean (`false`) | A short accent tick above each post-body h2. |
+| `date_format` | `"iso"` \| `"long"` | `long` = `Intl` long date in the page (post) language, read in UTC — e.g. `November 9, 2026` (en), `9 November 2026` (en-GB), `9 de noviembre de 2026` (es). Deterministic: the locale is always passed explicitly. |
+| `logo_mark_key` | path under `public/` (image extension) | A small image before the text wordmark in the header and footer (decorative, `alt=""`); not shown when `logo_key` replaces the wordmark. |
+| `header_align` | `"full"` \| `"content"` | `content` puts the header row on the content column (pulls the full-bleed `bar` in; the nav wraps under the brand on a phone). |
+
+**Pass `theme` to the list/post components.** `PostList`, `PostArticle` and `AuthorProfile` take
+an optional `theme` prop (`PostIndex` and the chrome already receive it). Without it they render
+the v0.5.0 markup, so `post_list_variant`, `date_format` and the post-header motif only take effect
+on pages that pass it:
+
+```tsx
+<PostList posts={posts} site={site} theme={theme} />
+<PostArticle post={post} site={site} theme={theme} />
+<AuthorProfile author={author} posts={posts} site={site} theme={theme} />
+```
+
+```json
+{
+  "brand_name": "Example Blog",
+  "post_list_variant": "cards",
+  "pattern": "dots",
+  "heading_case": "uppercase",
+  "letter_spacing": "0.04em",
+  "meta_style": "mono",
+  "index_label": "Latest",
+  "drop_cap": true,
+  "list_marker": "dash",
+  "date_format": "long",
+  "hero": { "eyebrow": "Field notes", "title": "Practical guides from Example Blog" }
+}
+```
+
+### Markdown bodies
+
+`MarkdownBody` covers `#`–`###` headings, paragraphs, `- ` lists, `[text](href)` links, `**bold**`,
+`*italic*`, `` `inline code` `` and GFM pipe tables (v0.6.0), and a standalone
+`![alt](src "caption")` figure. Tables render `thead`/`tbody` with column alignment, inside a
+focusable wrapper that scrolls horizontally on a phone. Every piece of text is a React text node
+(escaped); a link to a `javascript:` / `data:` / `vbscript:` URL renders as its plain label.
 
 ### Multilingual routing + frontmatter (v0.4.0)
 

@@ -8,9 +8,12 @@ import type { FaqItem, Post } from "../content/types";
 import { authorBySlug, type Author, type SiteConfig } from "../site/schema";
 import { authorPath, indexPagePath, postPathFor } from "../seo/urls";
 import { classer } from "../theme/classes";
-import type { ThemeConfig, ThemeHero } from "../theme/schema";
-import { toIsoDate } from "../util";
+import { hasPattern } from "../theme/css";
+import { DEFAULT_POST_LIST_CTA_LABEL, type ThemeConfig, type ThemeHero } from "../theme/schema";
+import { formatDisplayDate } from "../util";
+import { postLang } from "../content/languages";
 import { MarkdownBody, resolveBodyFormat } from "../content/markdown";
+import { readingMinutes } from "../content/reading-time";
 import { LanguageSwitch, type LanguageSwitchEntry } from "./chrome";
 import { PaidPlacementCallout, showPaidPlacement } from "./disclosure";
 
@@ -21,6 +24,16 @@ type PostListSite = Pick<SiteConfig, "authors" | "language">;
 // The site shape the post page needs: the list site plus the optional
 // sponsor-disclosure config (both null/off on a plain blog).
 type PostSite = PostListSite & Pick<SiteConfig, "features" | "sponsor">;
+
+// The theme slice the list / post components read (v0.6.0). Optional on every
+// component: without it (or with the keys at their defaults) the markup is
+// exactly the v0.5.0 markup.
+export type PostTheme = Partial<
+  Pick<
+    ThemeConfig,
+    "post_list_variant" | "post_list_cta_label" | "date_format" | "pattern" | "pattern_image_key" | "index_label"
+  >
+>;
 
 // The post body. The body string is either the publisher's article HTML or a
 // hand-written body. SECURITY: an HTML body is injected verbatim — it MUST be
@@ -41,22 +54,43 @@ export function PostBody({
   if (format === "markdown") {
     return (
       <div className={c("post-body")}>
-        <MarkdownBody source={post.html} />
+        <MarkdownBody source={post.html} classPrefix={classPrefix} />
       </div>
     );
   }
   return <div className={c("post-body")} dangerouslySetInnerHTML={{ __html: post.html }} />;
 }
 
-function Byline({ post, site, classPrefix = "" }: { post: Post; site: Pick<SiteConfig, "authors">; classPrefix?: string }) {
-  const c = classer(classPrefix);
+// The post's display date in the theme's `date_format`, in the post's own
+// language (the page language), so a `/es/` post reads "9 de noviembre de 2026".
+function displayDate(post: Post, site: PostListSite, theme: PostTheme | undefined): string {
+  return formatDisplayDate(post.frontmatter.publishAt, theme?.date_format, postLang(post, site.language));
+}
+
+function AuthorName({ post, site }: { post: Post; site: PostListSite }) {
   const fm = post.frontmatter;
   const author = authorBySlug(site, fm.authorSlug);
+  return author ? <a href={authorPath(author.slug)}>{author.name}</a> : <span>{fm.author}</span>;
+}
+
+function Byline({
+  post,
+  site,
+  theme,
+  classPrefix = "",
+}: {
+  post: Post;
+  site: PostListSite;
+  theme?: PostTheme;
+  classPrefix?: string;
+}) {
+  const c = classer(classPrefix);
+  const fm = post.frontmatter;
   return (
     <p className={c("post-meta")}>
-      <time dateTime={fm.publishAt}>{toIsoDate(fm.publishAt)}</time>
+      <time dateTime={fm.publishAt}>{displayDate(post, site, theme)}</time>
       {" · "}
-      {author ? <a href={authorPath(author.slug)}>{author.name}</a> : <span>{fm.author}</span>}
+      <AuthorName post={post} site={site} />
     </p>
   );
 }
@@ -64,14 +98,21 @@ function Byline({ post, site, classPrefix = "" }: { post: Post; site: Pick<SiteC
 export function PostList({
   posts,
   site,
+  theme,
   classPrefix = "",
 }: {
   posts: readonly Post[];
   site: PostListSite;
+  // Optional (v0.6.0): `post_list_variant: "cards"` renders PostCards, and
+  // `date_format` sets the byline date. Absent = the v0.5.0 list.
+  theme?: PostTheme;
   classPrefix?: string;
 }) {
   const c = classer(classPrefix);
   if (posts.length === 0) return <p className={c("empty")}>No posts yet.</p>;
+  if (theme?.post_list_variant === "cards") {
+    return <PostCards posts={posts} site={site} theme={theme} classPrefix={classPrefix} />;
+  }
   return (
     <ul className={c("post-list")}>
       {posts.map((post) => (
@@ -79,11 +120,70 @@ export function PostList({
           <h2>
             <a href={postPathFor(post, site.language)}>{post.frontmatter.title}</a>
           </h2>
-          <Byline post={post} site={site} classPrefix={classPrefix} />
+          <Byline post={post} site={site} theme={theme} classPrefix={classPrefix} />
           {post.frontmatter.description ? <p className={c("excerpt")}>{post.frontmatter.description}</p> : null}
         </li>
       ))}
     </ul>
+  );
+}
+
+// The "cards" post list (v0.6.0): one raised card per post with the date and
+// reading time, the title (its link is stretched over the whole card, so the
+// card is one tab stop and one click target), the excerpt, the byline (the
+// author link stays clickable above the stretched link) and a visual "Read →"
+// affordance. The affordance is aria-hidden — the title link already names the
+// destination, so it is not a second, ambiguous "Read" link.
+export function PostCards({
+  posts,
+  site,
+  theme,
+  classPrefix = "",
+}: {
+  posts: readonly Post[];
+  site: PostListSite;
+  theme?: PostTheme;
+  classPrefix?: string;
+}) {
+  const c = classer(classPrefix);
+  if (posts.length === 0) return <p className={c("empty")}>No posts yet.</p>;
+  const cta = theme?.post_list_cta_label ?? DEFAULT_POST_LIST_CTA_LABEL;
+  return (
+    <ul className={c("post-list", "post-cards")}>
+      {posts.map((post) => {
+        const fm = post.frontmatter;
+        const minutes = readingMinutes(post.html);
+        return (
+          <li key={post.slug} className={c("post-card")}>
+            <p className={c("post-meta")}>
+              <time dateTime={fm.publishAt}>{displayDate(post, site, theme)}</time>
+              {minutes > 0 ? ` · ${minutes} min read` : null}
+            </p>
+            <h2>
+              <a href={postPathFor(post, site.language)}>{fm.title}</a>
+            </h2>
+            {fm.description ? <p className={c("excerpt")}>{fm.description}</p> : null}
+            <p className={c("post-meta", "post-card-byline")}>
+              <AuthorName post={post} site={site} />
+            </p>
+            <span className={c("post-card-cta")} aria-hidden="true">
+              {cta}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// The optional divider label above the index post list (v0.6.0 `index_label`).
+function IndexLabel({ label, classPrefix }: { label: string | null | undefined; classPrefix: string }) {
+  if (!label) return null;
+  const c = classer(classPrefix);
+  return (
+    <p className={c("index-label")}>
+      <span>{label}</span>
+    </p>
   );
 }
 
@@ -134,7 +234,8 @@ export function PostIndex({
     return (
       <>
         <IndexHero hero={hero} classPrefix={classPrefix} />
-        <PostList posts={posts} site={site} classPrefix={classPrefix} />
+        <IndexLabel label={theme.index_label} classPrefix={classPrefix} />
+        <PostList posts={posts} site={site} theme={theme} classPrefix={classPrefix} />
         <Pagination page={page} totalPages={totalPages} classPrefix={classPrefix} />
       </>
     );
@@ -146,7 +247,8 @@ export function PostIndex({
         {page > 1 ? <span className={c("post-meta")}> — page {page}</span> : null}
       </h1>
       <hr className={c("accent-rule")} />
-      <PostList posts={posts} site={site} classPrefix={classPrefix} />
+      <IndexLabel label={theme.index_label} classPrefix={classPrefix} />
+      <PostList posts={posts} site={site} theme={theme} classPrefix={classPrefix} />
       <Pagination page={page} totalPages={totalPages} classPrefix={classPrefix} />
     </>
   );
@@ -167,6 +269,7 @@ export function IndexHero({ hero, classPrefix = "" }: { hero: ThemeHero; classPr
       aria-labelledby="index-hero-title"
     >
       <div className={c("index-hero-text")}>
+        {hero.eyebrow ? <p className={c("index-hero-eyebrow")}>{hero.eyebrow}</p> : null}
         <h1 id="index-hero-title">{hero.title}</h1>
         {hero.subtitle ? <p className={c("index-hero-subtitle")}>{hero.subtitle}</p> : null}
         {cta ? (
@@ -215,11 +318,16 @@ export function FaqBlock({
 export function PostArticle({
   post,
   site,
+  theme,
   languageSwitch = [],
   classPrefix = "",
 }: {
   post: Post;
   site: PostSite;
+  // Optional (v0.6.0): `date_format` sets the byline date, and a `pattern` /
+  // `pattern_image_key` wraps the title block in a patterned `.post-header`.
+  // Absent = the v0.5.0 markup.
+  theme?: PostTheme;
   // The post's live siblings in other languages (empty on a monolingual post).
   // When non-empty, a "read in other languages" switch renders above the title.
   languageSwitch?: readonly LanguageSwitchEntry[];
@@ -227,10 +335,17 @@ export function PostArticle({
 }) {
   const c = classer(classPrefix);
   const fm = post.frontmatter;
+  const head = (
+    <>
+      <h1>{fm.title}</h1>
+      {fm.description ? <p className={c("post-description")}>{fm.description}</p> : null}
+      <Byline post={post} site={site} theme={theme} classPrefix={classPrefix} />
+    </>
+  );
   return (
     <article className={c("post")}>
       {languageSwitch.length > 1 ? (
-        <LanguageSwitch entries={languageSwitch} ariaLabel="Read in another language" classPrefix={classPrefix} />
+        <LanguageSwitch entries={languageSwitch} ariaLabel="Read in another language" placement="post" classPrefix={classPrefix} />
       ) : null}
       {showPaidPlacement(site, fm) && site.sponsor ? (
         <PaidPlacementCallout
@@ -240,9 +355,7 @@ export function PostArticle({
           classPrefix={classPrefix}
         />
       ) : null}
-      <h1>{fm.title}</h1>
-      {fm.description ? <p className={c("post-description")}>{fm.description}</p> : null}
-      <Byline post={post} site={site} classPrefix={classPrefix} />
+      {theme && hasPattern(theme) ? <header className={c("post-header")}>{head}</header> : head}
       <hr className={c("accent-rule")} />
       {fm.coverImage ? (
         <figure className={c("hero")}>
@@ -279,11 +392,14 @@ export function AuthorProfile({
   author,
   posts,
   site,
+  theme,
   classPrefix = "",
 }: {
   author: Author;
   posts: readonly Post[];
   site: PostListSite;
+  // Optional (v0.6.0): passed to the author's PostList (cards / date format).
+  theme?: PostTheme;
   classPrefix?: string;
 }) {
   const c = classer(classPrefix);
@@ -304,7 +420,7 @@ export function AuthorProfile({
         </section>
       ) : null}
       <h2>Posts</h2>
-      <PostList posts={posts} site={site} classPrefix={classPrefix} />
+      <PostList posts={posts} site={site} theme={theme} classPrefix={classPrefix} />
     </>
   );
 }

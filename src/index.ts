@@ -35,6 +35,34 @@ export {
   FONT_FILE_EXTENSIONS,
   FONT_FILE_STYLES,
   PUBLIC_PATH_MAX,
+  parseHeadingWeight,
+  safeFontStack,
+  safeLength,
+  safeLetterSpacing,
+  HERO_EYEBROW_MAX,
+  POST_LIST_VARIANTS,
+  DEFAULT_POST_LIST_VARIANT,
+  POST_LIST_CTA_LABEL_MAX,
+  DEFAULT_POST_LIST_CTA_LABEL,
+  PATTERN_VARIANTS,
+  DEFAULT_PATTERN,
+  PATTERN_IMAGE_EXTENSIONS,
+  HEADING_WEIGHT_MIN,
+  HEADING_WEIGHT_MAX,
+  TEXT_CASES,
+  DEFAULT_TEXT_CASE,
+  META_STYLES,
+  DEFAULT_META_STYLE,
+  DEFAULT_MONO_FONT,
+  INDEX_LABEL_MAX,
+  FOOTER_TAGLINE_MAX,
+  LIST_MARKERS,
+  DEFAULT_LIST_MARKER,
+  DATE_FORMATS,
+  DEFAULT_DATE_FORMAT,
+  LOGO_MARK_EXTENSIONS,
+  HEADER_ALIGNS,
+  DEFAULT_HEADER_ALIGN,
 } from "./theme/schema";
 export type {
   LayoutVariant,
@@ -54,6 +82,13 @@ export type {
   ThemeHeroCta,
   FontFile,
   FontFileStyle,
+  PostListVariant,
+  PatternVariant,
+  TextCase,
+  MetaStyle,
+  ListMarker,
+  DateFormat,
+  HeaderAlign,
 } from "./theme/schema";
 export {
   FONT_PAIRS,
@@ -63,6 +98,11 @@ export {
   resolveSurface,
   themeCss,
   DARK_SURFACE_MAX_LUMINANCE,
+  hasPattern,
+  patternInk,
+  patternVeilAlpha,
+  patternImageVar,
+  PATTERN_WEIGHTS,
 } from "./theme/css";
 export { classer, prefixStylesheet } from "./theme/classes";
 export { derivePalette, contrastRatio, guardAccent, normalizeHex, paletteCssVars, AA_CONTRAST } from "./theme/palette";
@@ -89,8 +129,20 @@ export {
 } from "./content/languages";
 export type { Direction } from "./content/languages";
 export type { BodyFormat, FaqItem, HreflangAlternate, Post, PostFrontmatter, PostStatus } from "./content/types";
-export { MarkdownBody, Figure, parseMarkdownBlocks, resolveBodyFormat } from "./content/markdown";
-export type { MarkdownBlock } from "./content/markdown";
+export {
+  MarkdownBody,
+  MarkdownTable,
+  Figure,
+  parseMarkdownBlocks,
+  resolveBodyFormat,
+  renderInline,
+  isSafeLinkHref,
+  splitTableRow,
+  tableAlignments,
+  TABLE_MIN_COLUMN_EM,
+} from "./content/markdown";
+export type { MarkdownBlock, TableAlign } from "./content/markdown";
+export { readingMinutes, bodyText, WORDS_PER_MINUTE, CJK_CHARS_PER_MINUTE } from "./content/reading-time";
 export {
   aboutPageMarkdown,
   disclosurePageMarkdown,
@@ -129,6 +181,9 @@ export {
   PostBody,
   PostIndex,
   PostList,
+  PostCards,
 } from "./components/posts";
+export type { PostTheme } from "./components/posts";
 
-export { escapeHtml, escapeXml, jsonLdSafe, toIsoDate, toRfc822 } from "./util";
+export { escapeHtml, escapeXml, formatDisplayDate, jsonLdSafe, toIsoDate, toRfc822 } from "./util";
+export type { DisplayDateFormat } from "./util";

@@ -9,13 +9,13 @@
 // `classPrefix`), so independently-published sites do not share identical
 // markup. The default "" prefix keeps class names byte-identical.
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { dirForLang } from "../content/languages";
 import type { SiteConfig } from "../site/schema";
 import { classer } from "../theme/classes";
 import { resolveLayout, themeCss } from "../theme/css";
-import type { ThemeConfig } from "../theme/schema";
+import { LOGO_MARK_EXTENSIONS, safePublicPath, type ThemeConfig } from "../theme/schema";
 import { jsonLdSafe } from "../util";
 import { DisclosureBanner, showSponsorBanner, SponsorAttribution } from "./disclosure";
 
@@ -74,32 +74,84 @@ export function LanguageSwitch({
   entries,
   style = null,
   ariaLabel = "Language",
+  placement = "nav",
   classPrefix = "",
 }: {
   entries: readonly LanguageSwitchEntry[];
   style?: "pill" | null;
   ariaLabel?: string;
+  // "nav" (default): styled by the header stylesheet (emitted only when the
+  // theme has a `language_switch` nav entry). "post" (v0.6.1): the switch a
+  // post page renders above its title — it appears on any site with
+  // translated posts, whatever the theme, so it carries its own inline styles
+  // (separate >= 44px tap targets, current language filled) rather than adding
+  // rules to every site's stylesheet.
+  placement?: "nav" | "post";
   classPrefix?: string;
 }) {
   if (entries.length <= 1) return null;
   const c = classer(classPrefix);
   const pill = style === "pill" ? c("nav-pill") : undefined;
+  const inline = placement === "post";
   return (
-    <span className={c("language-switch")} role="group" aria-label={ariaLabel}>
+    <span
+      className={c("language-switch")}
+      role="group"
+      aria-label={ariaLabel}
+      style={inline ? POST_SWITCH_STYLE : undefined}
+    >
       {entries.map((entry) => {
         const label = entry.lang.toUpperCase();
         return entry.current ? (
-          <span key={entry.lang} className={pill} aria-current="true">
+          <span key={entry.lang} className={pill} aria-current="true" style={inline ? POST_SWITCH_CURRENT_STYLE : undefined}>
             {label}
           </span>
         ) : (
-          <a key={entry.lang} className={pill} href={entry.href} hrefLang={entry.lang}>
+          <a
+            key={entry.lang}
+            className={pill}
+            href={entry.href}
+            hrefLang={entry.lang}
+            style={inline ? POST_SWITCH_ENTRY_STYLE : undefined}
+          >
             {label}
           </a>
         );
       })}
     </span>
   );
+}
+
+// Inline styles for the post-page switch (placement "post"). Colors are the
+// surface tokens, so it follows a dark surface; the current entry is ink-on-bg
+// inverted, which the surface guard keeps at >= 4.5:1.
+const POST_SWITCH_STYLE: CSSProperties = { display: "flex", flexWrap: "wrap", gap: "8px", margin: "18px 0 4px" };
+const POST_SWITCH_ENTRY_STYLE: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: "44px",
+  minHeight: "44px",
+  padding: "0 14px",
+  border: "1px solid currentColor",
+  borderRadius: "999px",
+  color: "var(--ink)",
+  fontSize: "14px",
+  fontWeight: 600,
+  letterSpacing: ".04em",
+};
+const POST_SWITCH_CURRENT_STYLE: CSSProperties = {
+  ...POST_SWITCH_ENTRY_STYLE,
+  background: "var(--ink)",
+  borderColor: "var(--ink)",
+  color: "var(--bg)",
+};
+
+// The logo mark's site-root src (v0.6.0), re-validated as a safe public image
+// path so a hand-built theme cannot point it off-site. Null = no mark.
+function logoMarkSrc(theme: Partial<Pick<ThemeConfig, "logo_mark_key">>): string | null {
+  const path = safePublicPath(theme.logo_mark_key, LOGO_MARK_EXTENSIONS);
+  return path ? `/${path}` : null;
 }
 
 export function SiteHeader({
@@ -129,6 +181,10 @@ export function SiteHeader({
   // the intrinsic height attribute is dropped; without it the logo keeps its
   // default 40px height via the explicit attribute, exactly as before.
   const logoWidth = theme.logo_width ?? null;
+  // The optional logo mark (v0.6.0) sits before the TEXT wordmark only — a
+  // full `logo_key` image already is the brand. Decorative (alt=""): the link
+  // is named by its aria-label.
+  const markSrc = logoMarkSrc(theme);
   return (
     <header className={c("site-header")}>
       <div className={c("wrap")}>
@@ -140,6 +196,11 @@ export function SiteHeader({
               ) : (
                 <img className={c("logo")} src={logoSrc} alt={theme.brand_name} height={40} />
               )
+            ) : markSrc ? (
+              <>
+                <img className={c("logo-mark")} src={markSrc} alt="" height={28} />
+                <span className={c("name")}>{theme.brand_name}</span>
+              </>
             ) : (
               <span className={c("name")}>{theme.brand_name}</span>
             )}
@@ -189,9 +250,19 @@ export function SiteFooter({
 }) {
   const c = classer(classPrefix);
   const sponsor = site && showSponsorBanner(site) ? site.sponsor : null;
+  // v0.6.0: a logo mark adds a mark + wordmark row; `footer_tagline` adds a
+  // line under it. Neither set = the v0.5.0 footer.
+  const markSrc = logoMarkSrc(theme);
   return (
     <footer className={c("site-footer")}>
       <div className={c("wrap")}>
+        {markSrc ? (
+          <p className={c("footer-brand")}>
+            <img className={c("logo-mark")} src={markSrc} alt="" height={22} />
+            <span className={c("footer-name")}>{theme.brand_name}</span>
+          </p>
+        ) : null}
+        {theme.footer_tagline ? <p className={c("footer-tagline")}>{theme.footer_tagline}</p> : null}
         {sponsor ? <SponsorAttribution siteName={theme.brand_name} sponsor={sponsor} classPrefix={classPrefix} /> : null}
         <p>
           &copy; {year} {theme.brand_name}.{" "}

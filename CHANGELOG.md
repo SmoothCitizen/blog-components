@@ -8,6 +8,80 @@ All notable changes to the blog components package. Versions follow
 - **major** — anything a pinned repo must adapt to (a required key, a renamed export,
   a changed file layout, a changed visibility rule).
 
+## [0.6.1] — 2026-11-09
+
+Patch: two layout fixes, no contract change (no key, prop default or export
+removed). Stylesheet output changes ONLY for a `bar` header theme and for a
+theme with a `language_switch` nav entry; every other theme's `themeCss` is
+unchanged. Refreshed fixtures: `test/fixtures/v0_3_1-themecss.txt` and the
+`full:themeCss` entry of `test/fixtures/v0_5_0-markup.json` (both bar themes;
+three bar rules each). All other fixtures are untouched.
+
+- **Language switch is tappable and marks the current language.** The switch
+  a post page renders above a translated post's title used to have no styles
+  (its rules were scoped to the header nav), so its codes ran together
+  ("ENES"). It now renders separated pill entries, each at least 44px, with
+  the current language filled (ink on bg) and still `aria-current="true"`.
+  Because that switch appears on any site with translated posts, whatever the
+  theme, it carries inline styles (new `LanguageSwitch` prop
+  `placement: "nav" | "post"`, default `"nav"`; `PostArticle` passes
+  `"post"`) instead of adding rules to every site's stylesheet. The header-nav
+  switch (still emitted only when the theme has a `language_switch` entry)
+  wraps, gives every entry a 44px tap target, and marks the current language
+  with bold text and an accent underline (a filled pill in pill style)
+  instead of the dimmed color that read as disabled.
+- **`bar` header wraps on phones.** The bar's row and its nav now
+  `flex-wrap`, so a phone with several nav entries plus a language pill
+  stacks the nav under the logo instead of scrolling the page sideways
+  (row gap 12px; nav gap 4px × 16px under 800px). A row that fits is
+  unchanged.
+
+## [0.6.0] — 2026-11-09
+
+Minor: two markdown fixes and optional design knobs. A config that sets none
+of the new keys (or sets each to its default) renders byte-identically to
+v0.5.0 — `themeCss`, header, footer, index, list, post and author markup are
+asserted against `test/fixtures/v0_5_0-markup.json`, captured from the v0.5.0
+components; the v0.2.0 / v0.3.1 fixtures still hold.
+
+- **Markdown: inline code + GFM tables (fix).** `` `x` `` renders `<code>`
+  (content literal — no emphasis/links inside, HTML escaped; ``` `` ``` runs
+  for a backtick inside). GFM pipe tables (header row + delimiter row with the
+  same cell count, `:--`/`:-:`/`--:` alignment, `\|` escapes, short rows
+  padded, extra cells dropped) render `<table>` with `thead`/`tbody` inside a
+  focusable `role="region"` wrapper (`.table-wrap`) that scrolls horizontally
+  on a phone; cells use the existing `.post-body table/th/td` rules. A link to
+  a `javascript:`/`data:`/`vbscript:` URL now renders as its plain label.
+  `MarkdownBody` takes an optional `classPrefix`. New exports `MarkdownTable`,
+  `renderInline`, `isSafeLinkHref`, `splitTableRow`, `tableAlignments`,
+  `TABLE_MIN_COLUMN_EM`; `MarkdownBlock` gains a `table` member.
+- **Post cards (`post_list_variant: "cards"`, `post_list_cta_label`).** Raised
+  cards with date, reading time, title (one stretched link per card),
+  excerpt, byline and an `aria-hidden` CTA (default `Read →`). New
+  `PostCards`, `readingMinutes`, `bodyText`.
+- **Background motif (`pattern`, `pattern_image_key`).** `dots` / `grid` /
+  `pinstripe` / `herringbone` in pure CSS behind the index hero and the post
+  header, colored by mixing the guarded accent into the page bg and stepping
+  the mix down until the ink and muted text keep their contrast
+  (`patternInk`); or a custom svg/png/webp under a surface veil sized so text
+  keeps its contrast over any image pixel (`patternVeilAlpha`). The post title
+  block is wrapped in `<header class="post-header">` only when a motif is set.
+- **Typography.** `heading_weight` (300–900), `heading_case` / `nav_case` /
+  `logo_case` (`uppercase`) with a validated `letter_spacing`, and
+  `meta_style: "mono"` + `mono_font` for metadata and small labels.
+- **Labels.** `hero.eyebrow`, `index_label` (divider above the index list),
+  `footer_tagline`.
+- **Post body.** `drop_cap`, `list_marker` (`dash` / `accent`),
+  `heading_accent`.
+- **Dates (`date_format: "long"`).** `formatDisplayDate` — `Intl` long date in
+  the post's language, read in UTC with an explicit locale (no build-machine
+  locale/time-zone drift).
+- **Chrome.** `logo_mark_key` (small image before the text wordmark, header +
+  footer); `header_align: "content"` (header row on the content column).
+- **Component props.** `PostList`, `PostArticle` and `AuthorProfile` take an
+  optional `theme` (type `PostTheme`); without it they render the v0.5.0
+  markup. Pass it to enable cards, long dates and the post-header motif.
+
 ## [0.5.0] — 2026-11-09
 
 Minor: two new optional theme keys. A config that sets neither renders

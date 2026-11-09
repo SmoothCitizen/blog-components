@@ -76,6 +76,8 @@ describe("v0.3.1 byte-compatibility", () => {
     ],
   };
 
+  // v0.3.1 capture; the themeCss fixture was refreshed once at v0.6.1 for the
+  // `bar` header wrap fix (three bar rules), the header markup is unchanged.
   it("SiteHeader + themeCss are byte-identical to the captured v0.3.1 output", () => {
     const theme = parseTheme(config031);
     expect(render(createElement(SiteHeader, { theme, classPrefix: "exr" }))).toBe(read("v0_3_1-header.txt"));
