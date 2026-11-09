@@ -98,6 +98,9 @@ export interface ThemeHero {
   // Optional small text above the title (v0.6.0), plain text <= HERO_EYEBROW_MAX.
   eyebrow: string | null;
   title: string;
+  // Optional emphasised phrase appended to the title (v0.7.0), rendered as an
+  // italic <em> in the guarded accent. Plain text <= HERO_TITLE_ACCENT_MAX.
+  title_accent: string | null;
   subtitle: string | null;
   image_key: string | null;
   image_alt: string;
@@ -143,13 +146,55 @@ export interface FontFile {
 //   - `date_format`: "iso" (YYYY-MM-DD) or "long" (Intl, page language, UTC).
 //   - `logo_mark_key`: a small image before the text wordmark (header + footer).
 //   - `header_align`: "full" or "content" (header row on the content column).
-export type PostListVariant = "list" | "cards";
+export type PostListVariant = "list" | "cards" | "numbered";
 export type PatternVariant = "none" | "dots" | "grid" | "pinstripe" | "herringbone";
 export type TextCase = "none" | "uppercase";
 export type MetaStyle = "default" | "mono";
 export type ListMarker = "default" | "dash" | "accent";
-export type DateFormat = "iso" | "long";
+export type DateFormat = "iso" | "long" | "short";
 export type HeaderAlign = "full" | "content";
+
+// v0.7.0 fidelity keys. Every one is optional and defaults to the v0.6.1 look,
+// so a config that sets none of them renders byte-identically. See the README
+// key table for what each one does; the CSS lives in css.ts `fidelityCss`.
+export type PatternStrength = "subtle" | "medium" | "bold";
+export type PatternPosition = "cover" | "top-left" | "top-right" | "center" | "top";
+export type HeroStyle = "panel" | "flat" | "inverse";
+export type PostListColumns = 1 | 2;
+export type CardMeta = "date_reading" | "author_date" | "date_author";
+export type MetaPosition = "top" | "bottom";
+export type CardStyle = "raised" | "flat";
+export type CardCtaPosition = "bottom" | "inline";
+export type BylineOrder = "date_author" | "author_date";
+export type MetaSeparator = "dot" | "slash" | "pipe";
+export type AuthorStyle = "accent" | "ink" | "underline" | "italic";
+export type TitleColor = "accent" | "ink";
+export type EyebrowColor = "muted" | "accent" | "accent2";
+export type LabelFont = "body" | "heading" | "mono";
+export type IndexLabelStyle = "rule" | "bar";
+export type DateOrder = "mdy" | "dmy";
+export type FooterVariant = "plain" | "band" | "columns";
+export type FooterSurface = "panel" | "bg" | "sunken";
+export type BlockAlign = "left" | "center";
+export type NavFont = "body" | "mono";
+export type NavSize = "sm" | "md";
+export type NavStyle = "plain" | "ruled";
+export type BrandSize = "sm" | "md" | "lg";
+export type HeaderSurface = "tint" | "bg" | "panel";
+export type TaglinePosition = "inline" | "above";
+export type PostMetaLayout = "classic" | "split";
+export type DescriptionStyle = "normal" | "italic";
+export type DividerStyle = "accent" | "none" | "line" | "ticks" | "cross";
+export type HeadingCaseScope = "all" | "display";
+
+// A two-colour soft gradient behind the index hero and the post header. Both
+// colours are strict hexes here, re-normalized and mixed into the surface
+// (stepped down until the text keeps its contrast) in css.ts.
+export interface HeroWash {
+  from: string;
+  to: string;
+  angle: number;
+}
 
 export interface ThemeConfig {
   brand_name: string;
@@ -219,6 +264,59 @@ export interface ThemeConfig {
   date_format: DateFormat;
   logo_mark_key: string | null;
   header_align: HeaderAlign;
+  // v0.7.0 fidelity keys (see the PatternStrength comment above).
+  pattern_strength: PatternStrength;
+  pattern_position: PatternPosition;
+  // The post-header motif; null = the same motif as the hero.
+  post_header_pattern: PatternVariant | null;
+  post_header_pattern_image_key: string | null;
+  hero_wash: HeroWash | null;
+  hero_style: HeroStyle;
+  // null = the v0.6.1 auto-fill grid.
+  post_list_columns: PostListColumns | null;
+  card_meta: CardMeta;
+  card_meta_position: MetaPosition;
+  card_style: CardStyle;
+  card_cta_position: CardCtaPosition;
+  card_feature_first: boolean;
+  card_feature_label: string | null;
+  // EXCERPT_LINES_MIN-MAX; null = excerpts are not clamped.
+  excerpt_lines: number | null;
+  byline_prefix: string | null;
+  byline_order: BylineOrder;
+  meta_separator: MetaSeparator;
+  meta_case: TextCase;
+  author_style: AuthorStyle;
+  post_title_color: TitleColor;
+  eyebrow_color: EyebrowColor;
+  // A strict hex (re-normalized + contrast-guarded in css.ts); used by
+  // `eyebrow_color: "accent2"`.
+  accent_color_2: string | null;
+  label_tracking: string | null;
+  label_font: LabelFont | null;
+  index_label_style: IndexLabelStyle;
+  // null = the locale's own order (used by `date_format: "short"`).
+  date_order: DateOrder | null;
+  footer_variant: FooterVariant;
+  // null = the v0.6.1 footer band (the secondary tint, else transparent).
+  footer_surface: FooterSurface | null;
+  footer_align: BlockAlign;
+  footer_links_label: string | null;
+  nav_font: NavFont;
+  nav_size: NavSize;
+  nav_style: NavStyle;
+  brand_size: BrandSize;
+  // null = the v0.6.1 header background for the header variant.
+  header_surface: HeaderSurface | null;
+  tagline_position: TaglinePosition;
+  // Content column width in px (CONTENT_WIDTH_MIN-MAX); null = 820.
+  content_width: number | null;
+  post_header_align: BlockAlign;
+  post_header_eyebrow: string | null;
+  post_meta_layout: PostMetaLayout;
+  description_style: DescriptionStyle;
+  divider: DividerStyle;
+  heading_case_scope: HeadingCaseScope;
 }
 
 export const LAYOUT_VARIANTS: readonly LayoutVariant[] = ["journal", "grid", "minimal"];
@@ -251,7 +349,7 @@ export const FONT_FILE_STYLES: readonly FontFileStyle[] = ["normal", "italic"];
 export const DEFAULT_FONT_WEIGHT = "400";
 export const DEFAULT_FONT_STYLE: FontFileStyle = "normal";
 export const HERO_EYEBROW_MAX = 60;
-export const POST_LIST_VARIANTS: readonly PostListVariant[] = ["list", "cards"];
+export const POST_LIST_VARIANTS: readonly PostListVariant[] = ["list", "cards", "numbered"];
 export const DEFAULT_POST_LIST_VARIANT: PostListVariant = "list";
 export const POST_LIST_CTA_LABEL_MAX = 30;
 export const DEFAULT_POST_LIST_CTA_LABEL = "Read \u2192";
@@ -269,11 +367,52 @@ export const INDEX_LABEL_MAX = 40;
 export const FOOTER_TAGLINE_MAX = 120;
 export const LIST_MARKERS: readonly ListMarker[] = ["default", "dash", "accent"];
 export const DEFAULT_LIST_MARKER: ListMarker = "default";
-export const DATE_FORMATS: readonly DateFormat[] = ["iso", "long"];
+export const DATE_FORMATS: readonly DateFormat[] = ["iso", "long", "short"];
 export const DEFAULT_DATE_FORMAT: DateFormat = "iso";
 export const LOGO_MARK_EXTENSIONS: readonly string[] = HERO_IMAGE_EXTENSIONS;
 export const HEADER_ALIGNS: readonly HeaderAlign[] = ["full", "content"];
 export const DEFAULT_HEADER_ALIGN: HeaderAlign = "full";
+// v0.7.0
+export const HERO_TITLE_ACCENT_MAX = 80;
+export const PATTERN_STRENGTHS: readonly PatternStrength[] = ["subtle", "medium", "bold"];
+export const PATTERN_POSITIONS: readonly PatternPosition[] = ["cover", "top-left", "top-right", "center", "top"];
+export const HERO_STYLES: readonly HeroStyle[] = ["panel", "flat", "inverse"];
+export const POST_LIST_COLUMNS: readonly PostListColumns[] = [1, 2];
+export const CARD_METAS: readonly CardMeta[] = ["date_reading", "author_date", "date_author"];
+export const META_POSITIONS: readonly MetaPosition[] = ["top", "bottom"];
+export const CARD_STYLES: readonly CardStyle[] = ["raised", "flat"];
+export const CARD_CTA_POSITIONS: readonly CardCtaPosition[] = ["bottom", "inline"];
+export const CARD_FEATURE_LABEL_MAX = 24;
+export const EXCERPT_LINES_MIN = 2;
+export const EXCERPT_LINES_MAX = 6;
+export const BYLINE_PREFIX_MAX = 12;
+export const BYLINE_ORDERS: readonly BylineOrder[] = ["date_author", "author_date"];
+export const META_SEPARATORS: readonly MetaSeparator[] = ["dot", "slash", "pipe"];
+export const AUTHOR_STYLES: readonly AuthorStyle[] = ["accent", "ink", "underline", "italic"];
+export const TITLE_COLORS: readonly TitleColor[] = ["accent", "ink"];
+export const EYEBROW_COLORS: readonly EyebrowColor[] = ["muted", "accent", "accent2"];
+export const LABEL_FONTS: readonly LabelFont[] = ["body", "heading", "mono"];
+export const INDEX_LABEL_STYLES: readonly IndexLabelStyle[] = ["rule", "bar"];
+export const DATE_ORDERS: readonly DateOrder[] = ["mdy", "dmy"];
+export const FOOTER_VARIANTS: readonly FooterVariant[] = ["plain", "band", "columns"];
+export const FOOTER_SURFACES: readonly FooterSurface[] = ["panel", "bg", "sunken"];
+export const BLOCK_ALIGNS: readonly BlockAlign[] = ["left", "center"];
+export const FOOTER_LINKS_LABEL_MAX = 24;
+export const DEFAULT_FOOTER_LINKS_LABEL = "Links";
+export const NAV_FONTS: readonly NavFont[] = ["body", "mono"];
+export const NAV_SIZES: readonly NavSize[] = ["sm", "md"];
+export const NAV_STYLES: readonly NavStyle[] = ["plain", "ruled"];
+export const BRAND_SIZES: readonly BrandSize[] = ["sm", "md", "lg"];
+export const HEADER_SURFACES: readonly HeaderSurface[] = ["tint", "bg", "panel"];
+export const TAGLINE_POSITIONS: readonly TaglinePosition[] = ["inline", "above"];
+export const CONTENT_WIDTH_MIN = 560;
+export const CONTENT_WIDTH_MAX = 1100;
+export const POST_HEADER_EYEBROW_MAX = 40;
+export const POST_META_LAYOUTS: readonly PostMetaLayout[] = ["classic", "split"];
+export const DESCRIPTION_STYLES: readonly DescriptionStyle[] = ["normal", "italic"];
+export const DIVIDER_STYLES: readonly DividerStyle[] = ["accent", "none", "line", "ticks", "cross"];
+export const HEADING_CASE_SCOPES: readonly HeadingCaseScope[] = ["all", "display"];
+export const DEFAULT_WASH_ANGLE = 135;
 
 const optionalString = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
@@ -418,6 +557,7 @@ export function parseHero(value: unknown): ThemeHero | null {
   return {
     eyebrow: boundedText(raw.eyebrow, HERO_EYEBROW_MAX),
     title,
+    title_accent: boundedText(raw.title_accent, HERO_TITLE_ACCENT_MAX),
     subtitle: boundedText(raw.subtitle, HERO_SUBTITLE_MAX),
     image_key: safePublicPath(raw.image_key, HERO_IMAGE_EXTENSIONS),
     image_alt: boundedText(raw.image_alt, HERO_IMAGE_ALT_MAX) ?? "",
@@ -531,7 +671,77 @@ export function parseTheme(raw: unknown): ThemeConfig {
     date_format: oneOf(DATE_FORMATS, t.date_format, DEFAULT_DATE_FORMAT),
     logo_mark_key: safePublicPath(t.logo_mark_key, LOGO_MARK_EXTENSIONS),
     header_align: oneOf(HEADER_ALIGNS, t.header_align, DEFAULT_HEADER_ALIGN),
+    // v0.7.0
+    pattern_strength: oneOf(PATTERN_STRENGTHS, t.pattern_strength, "subtle"),
+    pattern_position: oneOf(PATTERN_POSITIONS, t.pattern_position, "cover"),
+    post_header_pattern: PATTERN_VARIANTS.find((v) => v === t.post_header_pattern) ?? null,
+    post_header_pattern_image_key: safePublicPath(t.post_header_pattern_image_key, PATTERN_IMAGE_EXTENSIONS),
+    hero_wash: parseHeroWash(t.hero_wash),
+    hero_style: oneOf(HERO_STYLES, t.hero_style, "panel"),
+    post_list_columns: POST_LIST_COLUMNS.find((v) => v === t.post_list_columns) ?? null,
+    card_meta: oneOf(CARD_METAS, t.card_meta, "date_reading"),
+    card_meta_position: oneOf(META_POSITIONS, t.card_meta_position, "top"),
+    card_style: oneOf(CARD_STYLES, t.card_style, "raised"),
+    card_cta_position: oneOf(CARD_CTA_POSITIONS, t.card_cta_position, "bottom"),
+    card_feature_first: t.card_feature_first === true,
+    card_feature_label: boundedText(t.card_feature_label, CARD_FEATURE_LABEL_MAX),
+    excerpt_lines: boundedInt(t.excerpt_lines, EXCERPT_LINES_MIN, EXCERPT_LINES_MAX),
+    byline_prefix: boundedText(t.byline_prefix, BYLINE_PREFIX_MAX),
+    byline_order: oneOf(BYLINE_ORDERS, t.byline_order, "date_author"),
+    meta_separator: oneOf(META_SEPARATORS, t.meta_separator, "dot"),
+    meta_case: oneOf(TEXT_CASES, t.meta_case, DEFAULT_TEXT_CASE),
+    author_style: oneOf(AUTHOR_STYLES, t.author_style, "accent"),
+    post_title_color: oneOf(TITLE_COLORS, t.post_title_color, "accent"),
+    eyebrow_color: oneOf(EYEBROW_COLORS, t.eyebrow_color, "muted"),
+    accent_color_2: hexString(t.accent_color_2),
+    label_tracking: safeLetterSpacing(t.label_tracking),
+    label_font: LABEL_FONTS.find((v) => v === t.label_font) ?? null,
+    index_label_style: oneOf(INDEX_LABEL_STYLES, t.index_label_style, "rule"),
+    date_order: DATE_ORDERS.find((v) => v === t.date_order) ?? null,
+    footer_variant: oneOf(FOOTER_VARIANTS, t.footer_variant, "plain"),
+    footer_surface: FOOTER_SURFACES.find((v) => v === t.footer_surface) ?? null,
+    footer_align: oneOf(BLOCK_ALIGNS, t.footer_align, "left"),
+    footer_links_label: boundedText(t.footer_links_label, FOOTER_LINKS_LABEL_MAX),
+    nav_font: oneOf(NAV_FONTS, t.nav_font, "body"),
+    nav_size: oneOf(NAV_SIZES, t.nav_size, "md"),
+    nav_style: oneOf(NAV_STYLES, t.nav_style, "plain"),
+    brand_size: oneOf(BRAND_SIZES, t.brand_size, "md"),
+    header_surface: HEADER_SURFACES.find((v) => v === t.header_surface) ?? null,
+    tagline_position: oneOf(TAGLINE_POSITIONS, t.tagline_position, "inline"),
+    content_width: boundedInt(t.content_width, CONTENT_WIDTH_MIN, CONTENT_WIDTH_MAX),
+    post_header_align: oneOf(BLOCK_ALIGNS, t.post_header_align, "left"),
+    post_header_eyebrow: boundedText(t.post_header_eyebrow, POST_HEADER_EYEBROW_MAX),
+    post_meta_layout: oneOf(POST_META_LAYOUTS, t.post_meta_layout, "classic"),
+    description_style: oneOf(DESCRIPTION_STYLES, t.description_style, "normal"),
+    divider: oneOf(DIVIDER_STYLES, t.divider, "accent"),
+    heading_case_scope: oneOf(HEADING_CASE_SCOPES, t.heading_case_scope, "all"),
   };
+}
+
+// An integer in [min, max] (a numeric string is accepted); anything else null.
+export function boundedInt(value: unknown, min: number, max: number): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+  return Number.isInteger(n) && n >= min && n <= max ? n : null;
+}
+
+// A strict `#rgb` / `#rrggbb` string (kept as written; css.ts re-normalizes it
+// before any use), else null. Never a keyword, rgb() or anything else.
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+export function hexString(value: unknown): string | null {
+  const v = optionalString(value);
+  return v && HEX_RE.test(v) ? v : null;
+}
+
+// `hero_wash`: both colours must be valid hexes or the whole wash is dropped;
+// `angle` is an integer 0-360 (default DEFAULT_WASH_ANGLE; an invalid angle
+// falls back to the default on its own).
+export function parseHeroWash(value: unknown): HeroWash | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const from = hexString(raw.from);
+  const to = hexString(raw.to);
+  if (!from || !to) return null;
+  return { from, to, angle: boundedInt(raw.angle, 0, 360) ?? DEFAULT_WASH_ANGLE };
 }
 
 // An allow-listed enum value, or the default for anything else (including a

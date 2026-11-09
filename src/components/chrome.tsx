@@ -15,7 +15,13 @@ import { dirForLang } from "../content/languages";
 import type { SiteConfig } from "../site/schema";
 import { classer } from "../theme/classes";
 import { resolveLayout, themeCss } from "../theme/css";
-import { LOGO_MARK_EXTENSIONS, safePublicPath, type ThemeConfig } from "../theme/schema";
+import {
+  DEFAULT_FOOTER_LINKS_LABEL,
+  FOOTER_VARIANTS,
+  LOGO_MARK_EXTENSIONS,
+  safePublicPath,
+  type ThemeConfig,
+} from "../theme/schema";
 import { jsonLdSafe } from "../util";
 import { DisclosureBanner, showSponsorBanner, SponsorAttribution } from "./disclosure";
 
@@ -253,15 +259,23 @@ export function SiteFooter({
   // v0.6.0: a logo mark adds a mark + wordmark row; `footer_tagline` adds a
   // line under it. Neither set = the v0.5.0 footer.
   const markSrc = logoMarkSrc(theme);
+  // v0.7.0 `footer_variant`: "band" always shows the brand row (CSS draws the
+  // band); "columns" is its own layout. "plain" (default) = the v0.6.1 footer.
+  const variant = FOOTER_VARIANTS.find((v) => v === theme.footer_variant) ?? "plain";
+  if (variant === "columns") {
+    return <ColumnsFooter theme={theme} year={year} sponsor={sponsor} markSrc={markSrc} classPrefix={classPrefix} />;
+  }
+  const brandRow =
+    markSrc || variant === "band" ? (
+      <p className={c("footer-brand")}>
+        {markSrc ? <img className={c("logo-mark")} src={markSrc} alt="" height={22} /> : null}
+        <span className={c("footer-name")}>{theme.brand_name}</span>
+      </p>
+    ) : null;
   return (
-    <footer className={c("site-footer")}>
+    <footer className={c("site-footer", variant === "band" ? "site-footer-band" : "")}>
       <div className={c("wrap")}>
-        {markSrc ? (
-          <p className={c("footer-brand")}>
-            <img className={c("logo-mark")} src={markSrc} alt="" height={22} />
-            <span className={c("footer-name")}>{theme.brand_name}</span>
-          </p>
-        ) : null}
+        {brandRow}
         {theme.footer_tagline ? <p className={c("footer-tagline")}>{theme.footer_tagline}</p> : null}
         {sponsor ? <SponsorAttribution siteName={theme.brand_name} sponsor={sponsor} classPrefix={classPrefix} /> : null}
         <p>
@@ -274,6 +288,68 @@ export function SiteFooter({
               <a href={sponsor.disclosurePath}>Disclosure</a> <a href={sponsor.aboutPath}>About</a>
             </>
           ) : null}
+        </p>
+      </div>
+    </footer>
+  );
+}
+
+// The "columns" footer (v0.7.0 `footer_variant`): brand + tagline (+ sponsor
+// attribution) on the left, a labelled link column on the right, and a legal
+// row under a hairline. The link column mirrors the header nav (the theme's
+// plain `nav_links`, else Home/About/Authors), then the sponsor-disclosure
+// pages when that layer is on, then RSS — every href is a validated nav href
+// or a fixed site path, deduplicated.
+function ColumnsFooter({
+  theme,
+  year,
+  sponsor,
+  markSrc,
+  classPrefix,
+}: {
+  theme: ThemeConfig;
+  year: number;
+  sponsor: NonNullable<SiteConfig["sponsor"]> | null;
+  markSrc: string | null;
+  classPrefix: string;
+}) {
+  const c = classer(classPrefix);
+  const navLinks = (theme.nav_links ?? []).filter((l) => l.type === "link");
+  const links: { label: string; href: string }[] = navLinks.length
+    ? navLinks.map((l) => ({ label: l.label, href: l.href }))
+    : [
+        { label: "Home", href: "/" },
+        { label: "About", href: "/about" },
+        { label: "Authors", href: "/authors" },
+      ];
+  if (sponsor) links.push({ label: "Disclosure", href: sponsor.disclosurePath }, { label: "About", href: sponsor.aboutPath });
+  links.push({ label: "RSS", href: "/feed.xml" });
+  const seen = new Set<string>();
+  const unique = links.filter((l) => (seen.has(l.href) ? false : (seen.add(l.href), true)));
+  return (
+    <footer className={c("site-footer", "site-footer-columns")}>
+      <div className={c("wrap")}>
+        <div className={c("footer-columns")}>
+          <div className={c("footer-main")}>
+            <p className={c("footer-brand")}>
+              {markSrc ? <img className={c("logo-mark")} src={markSrc} alt="" height={22} /> : null}
+              <span className={c("footer-name")}>{theme.brand_name}</span>
+            </p>
+            {theme.footer_tagline ? <p className={c("footer-tagline")}>{theme.footer_tagline}</p> : null}
+            {sponsor ? <SponsorAttribution siteName={theme.brand_name} sponsor={sponsor} classPrefix={classPrefix} /> : null}
+          </div>
+          <nav className={c("footer-links")} aria-label="Footer">
+            <p className={c("footer-links-label")}>{theme.footer_links_label ?? DEFAULT_FOOTER_LINKS_LABEL}</p>
+            {unique.map((l) => (
+              <a key={l.href} href={l.href} rel={l.href.startsWith("https://") ? "noopener" : undefined}>
+                {l.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+        <p className={c("footer-legal")}>
+          {`© ${year} ${theme.brand_name}.`}
+          {theme.contact_email ? <span className={c("contact")}>{` Contact: ${theme.contact_email}`}</span> : null}
         </p>
       </div>
     </footer>

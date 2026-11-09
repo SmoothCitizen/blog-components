@@ -40,29 +40,50 @@ export function toIsoDate(iso: string): string {
 // explicitly (never the runtime default) and the date is read in UTC, so the
 // build machine's locale or time zone cannot change the output. An invalid tag
 // falls back to "en". "" when the date is unparseable.
-export type DisplayDateFormat = "iso" | "long";
+//
+// "short" (v0.7.0) is the abbreviated month: "Jul 4, 2026" for en, "4 Jul
+// 2026" for en-GB. `order` ("mdy" | "dmy") fixes the order regardless of the
+// locale ("Jul 4, 2026" / "4 Jul 2026"), keeping the locale's month name; null
+// = the locale's own order. Same determinism rules as "long".
+export type DisplayDateFormat = "iso" | "long" | "short";
+export type DisplayDateOrder = "mdy" | "dmy";
 const LONG_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "numeric",
   month: "long",
   year: "numeric",
   timeZone: "UTC",
 };
+const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = { ...LONG_DATE_OPTIONS, month: "short" };
 
-export function formatDisplayDate(iso: string, format: DisplayDateFormat | null | undefined, lang: string): string {
-  if (format !== "long") return toIsoDate(iso);
+export function formatDisplayDate(
+  iso: string,
+  format: DisplayDateFormat | null | undefined,
+  lang: string,
+  order: DisplayDateOrder | null = null,
+): string {
+  if (format !== "long" && format !== "short") return toIsoDate(iso);
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return "";
-  return longDateFormatter(lang).format(new Date(t));
+  const date = new Date(t);
+  if (format === "long") return dateFormatter(lang, LONG_DATE_OPTIONS).format(date);
+  const fmt = dateFormatter(lang, SHORT_DATE_OPTIONS);
+  if (!order) return fmt.format(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => fmt.formatToParts(date).find((p) => p.type === type)?.value ?? "";
+  const [day, month, year] = [part("day"), part("month").replace(/\.$/, ""), part("year")];
+  // A locale whose short month is numeric (ja, zh, ko: "7月") keeps its own
+  // order — "7 4, 2026" would be wrong.
+  if (!/\p{L}/u.test(month)) return fmt.format(date);
+  return order === "mdy" ? `${month} ${day}, ${year}` : `${day} ${month} ${year}`;
 }
 
-function longDateFormatter(lang: string): Intl.DateTimeFormat {
+function dateFormatter(lang: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
   try {
     const [locale] = Intl.getCanonicalLocales(lang);
-    if (locale) return new Intl.DateTimeFormat(locale, LONG_DATE_OPTIONS);
+    if (locale) return new Intl.DateTimeFormat(locale, options);
   } catch (err) {
     if (!(err instanceof RangeError)) throw err; // only an invalid BCP-47 tag is expected
   }
-  return new Intl.DateTimeFormat("en", LONG_DATE_OPTIONS);
+  return new Intl.DateTimeFormat("en", options);
 }
 
 // RFC-822 date for RSS <pubDate>. "" when unparseable.

@@ -6,28 +6,23 @@
 // value can never inject arbitrary CSS.
 
 import { prefixStylesheet } from "./classes";
+import { fidelityCss, motifCss, motifImageVars } from "./fidelity";
 import {
   AA_CONTRAST,
   contrastRatio,
-  derivePalette,
-  hexToRgb,
   mix,
   normalizeHex,
   paletteCssVars,
   relativeLuminance,
   type PaletteSource,
 } from "./palette";
+import { type ResolvedSurface } from "./pattern";
 import {
   DEFAULT_FONT_PAIR,
   DEFAULT_MONO_FONT,
-  DEFAULT_PATTERN,
-  PATTERN_IMAGE_EXTENSIONS,
-  PATTERN_VARIANTS,
   parseHeadingWeight,
   safeFontStack,
   safeLetterSpacing,
-  safePublicPath,
-  type PatternVariant,
   DEFAULT_LAYOUT,
   DEFAULT_RADIUS,
   DEFAULT_SPACE,
@@ -37,6 +32,20 @@ import {
   type ThemeConfig,
   type ThemeSurface,
 } from "./schema";
+
+// The motif helpers moved to ./pattern in v0.7.0; re-exported for callers that
+// import them from here.
+export {
+  PATTERN_VEIL_MIN_ALPHA,
+  PATTERN_VEIL_STEP,
+  PATTERN_WEIGHTS,
+  PATTERN_WEIGHT_STEP,
+  hasPattern,
+  patternImageVar,
+  patternInk,
+  patternVeilAlpha,
+} from "./pattern";
+export { postHeaderMode } from "./fidelity";
 
 export interface FontStack {
   heading: string;
@@ -77,56 +86,15 @@ export function resolveLayout(theme: Pick<ThemeConfig, "layout_variant">): strin
   return LAYOUT_VARIANTS.includes(theme.layout_variant) ? theme.layout_variant : DEFAULT_LAYOUT;
 }
 
-type ThemeCssInput = PaletteSource &
-  Pick<ThemeConfig, "font_pair"> &
-  Partial<
-    Pick<
-      ThemeConfig,
-      | "fonts"
-      | "radius"
-      | "space"
-      | "class_prefix"
-      | "header_variant"
-      | "post_variant"
-      | "surface"
-      | "nav_links"
-      | "logo_width"
-      | "hero"
-      | "font_files"
-      | "post_list_variant"
-      | "pattern"
-      | "pattern_image_key"
-      | "heading_weight"
-      | "heading_case"
-      | "nav_case"
-      | "logo_case"
-      | "letter_spacing"
-      | "meta_style"
-      | "mono_font"
-      | "index_label"
-      | "footer_tagline"
-      | "drop_cap"
-      | "list_marker"
-      | "heading_accent"
-      | "logo_mark_key"
-      | "header_align"
-    >
-  >;
+// Every ThemeConfig key except `font_pair` is optional, so tests (and callers)
+// can pass a bare object; an absent key renders the default.
+export type ThemeCssInput = PaletteSource & Pick<ThemeConfig, "font_pair"> & Partial<ThemeConfig>;
 
 // The page-level colors, resolved. When a surface is absent (or fails
 // validation) these are the EXACT v0.2.0 literals, so themeCss is byte-identical
 // for a v0.2.0 config. `panel` and `softInk` are literal defaults too (they map
 // to the hard-coded `#f6f7f9` / `#333` the stylesheet used before); for a custom
 // surface they are derived from it so dark pages get dark panels / dim ink.
-interface ResolvedSurface {
-  bg: string;
-  ink: string;
-  muted: string;
-  line: string;
-  panel: string;
-  softInk: string;
-  dark: boolean;
-}
 
 const DEFAULT_SURFACE: ResolvedSurface = {
   bg: "#ffffff",
@@ -308,7 +276,8 @@ article.post h1{font-size:34px;margin:8px 0 6px}
   // The custom pattern image url (v0.6.0) is appended after prefixing for the
   // same reason (the `.svg` / `.png` extension would be rewritten): the
   // prefixed pattern rules read it through the `--pattern-image` variable.
-  const patternImage = patternImageVar(theme.pattern_image_key);
+  // v0.7.0 adds `--pattern-image-post` for a separate post-header image.
+  const patternImage = motifImageVars(theme);
   const withImage = patternImage ? `${prefixed}\n${patternImage}` : prefixed;
   return faces ? `${faces}\n${withImage}` : withImage;
 }
@@ -407,6 +376,8 @@ function optionalCss(theme: ThemeCssInput, surface: ResolvedSurface): string {
   }
 
   parts.push(...designKnobCss(theme, surface));
+  // v0.7.0 fidelity keys: [] when none is set (byte-identical to v0.6.1).
+  parts.push(...fidelityCss(theme, surface));
 
   // The base stylesheet already ends with one newline, so a single leading
   // newline here yields exactly one blank-line separator (the block style used
@@ -417,118 +388,6 @@ function optionalCss(theme: ThemeCssInput, surface: ResolvedSurface): string {
 // ---------------------------------------------------------------------------
 // v0.6.0 design knobs
 // ---------------------------------------------------------------------------
-
-// How strongly each built-in motif mixes the guarded accent into the page bg
-// (before the contrast guard steps it down). Thin-line motifs can carry more
-// color than the zig-zag, which fills half its area.
-export const PATTERN_WEIGHTS: Readonly<Record<Exclude<PatternVariant, "none">, number>> = {
-  dots: 0.4,
-  grid: 0.22,
-  pinstripe: 0.2,
-  herringbone: 0.08,
-};
-export const PATTERN_WEIGHT_STEP = 0.02;
-// The custom-image veil: the surface color laid over the image at this alpha
-// (or more, until the text contrast holds).
-export const PATTERN_VEIL_MIN_ALPHA = 0.82;
-export const PATTERN_VEIL_STEP = 0.02;
-
-// True when every `text` color stays readable on `color`: at least AA, or — for
-// a text color already below AA on the plain `base` surface — no worse than it
-// was there.
-function keepsTextContrast(color: string, base: string, texts: readonly string[]): boolean {
-  return texts.every((text) => contrastRatio(text, color) >= Math.min(AA_CONTRAST, contrastRatio(text, base)));
-}
-
-// The motif color for a built-in pattern: the guarded accent mixed into the
-// page bg at the pattern's weight, stepped down until the page ink AND muted
-// text keep their contrast on it — against both the page bg (post header) and
-// the panel (hero) — because motif pixels sit directly under text. Null when no
-// weight passes: the motif is then not drawn at all.
-export function patternInk(
-  pattern: Exclude<PatternVariant, "none">,
-  accent: string,
-  surface: Pick<ResolvedSurface, "bg" | "ink" | "muted" | "panel">,
-): string | null {
-  const texts = [surface.ink, surface.muted];
-  for (let w = PATTERN_WEIGHTS[pattern]; w > 0.005; w -= PATTERN_WEIGHT_STEP) {
-    const color = mix(accent, surface.bg, w);
-    if (color === surface.bg) break;
-    if (keepsTextContrast(color, surface.bg, texts) && keepsTextContrast(color, surface.panel, texts)) return color;
-  }
-  return null;
-}
-
-// The veil alpha for a custom pattern image: the smallest alpha (>= the
-// minimum) at which a fully black AND a fully white image pixel, seen through
-// the veil, still keep the ink + muted contrast on every surface the motif is
-// drawn on (the page bg for the post header, the panel for the hero). 1 = the
-// image is fully covered (always safe).
-export function patternVeilAlpha(surfaces: readonly string[], texts: readonly string[]): number {
-  for (let step = 0; ; step += 1) {
-    const a = Math.round((PATTERN_VEIL_MIN_ALPHA + step * PATTERN_VEIL_STEP) * 100) / 100;
-    if (a >= 1) return 1;
-    const ok = surfaces.every((bg) => ["#000000", "#ffffff"].every((px) => keepsTextContrast(mix(bg, px, a), bg, texts)));
-    if (ok) return a;
-  }
-}
-
-function rgba(hex: string, alpha: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-// `:root{--pattern-image:url("/…")}` for a custom motif, or "". The path is
-// re-validated with `safePublicPath` (svg/png/webp), so it can never close the
-// url(), the rule or the <style> tag.
-export function patternImageVar(key: string | null | undefined): string {
-  const path = safePublicPath(key, PATTERN_IMAGE_EXTENSIONS);
-  return path ? `:root{--pattern-image:url("/${path}")}` : "";
-}
-
-// The background layers for each built-in motif (all drawn in --pattern-ink).
-const PATTERN_LAYERS: Readonly<Record<Exclude<PatternVariant, "none">, string>> = {
-  dots: "background-image:radial-gradient(var(--pattern-ink) 1.3px,transparent 1.8px);background-size:18px 18px",
-  grid:
-    "background-image:linear-gradient(var(--pattern-ink) 1px,transparent 1px),linear-gradient(90deg,var(--pattern-ink) 1px,transparent 1px);background-size:24px 24px",
-  pinstripe: "background-image:repeating-linear-gradient(90deg,var(--pattern-ink) 0 1px,transparent 1px 10px)",
-  herringbone:
-    "background-image:linear-gradient(135deg,var(--pattern-ink) 25%,transparent 25%),linear-gradient(225deg,var(--pattern-ink) 25%,transparent 25%),linear-gradient(315deg,var(--pattern-ink) 25%,transparent 25%),linear-gradient(45deg,var(--pattern-ink) 25%,transparent 25%);" +
-    "background-position:-12px 0,-12px 0,0 0,0 0;background-size:24px 24px",
-};
-
-// True when the theme draws a motif (a valid custom image, or a built-in
-// pattern). The post page wraps its header in `.post-header` only then.
-export function hasPattern(theme: Partial<Pick<ThemeConfig, "pattern" | "pattern_image_key">>): boolean {
-  if (safePublicPath(theme.pattern_image_key, PATTERN_IMAGE_EXTENSIONS)) return true;
-  return PATTERN_VARIANTS.some((p) => p !== "none" && p === theme.pattern);
-}
-
-function patternCss(theme: ThemeCssInput, s: ResolvedSurface): string | null {
-  // The post header becomes a padded box only when a motif is drawn on it.
-  const box =
-    `.post-header{padding:22px 20px;margin:22px 0 6px;border:1px solid var(--line);border-radius:var(--radius)}\n` +
-    `.post-header h1{margin-top:0}`;
-  if (safePublicPath(theme.pattern_image_key, PATTERN_IMAGE_EXTENSIONS)) {
-    const alpha = patternVeilAlpha([s.bg, s.panel], [s.ink, s.muted]);
-    const veil = (hex: string) => `linear-gradient(${rgba(hex, alpha)},${rgba(hex, alpha)})`;
-    return (
-      `/* background motif: custom image under a surface veil (v0.6.0) */\n` +
-      `.index-hero{background-image:${veil(s.panel)},var(--pattern-image)}\n` +
-      `.post-header{background-image:${veil(s.bg)},var(--pattern-image)}\n` +
-      box
-    );
-  }
-  const pattern = PATTERN_VARIANTS.find((p) => p === theme.pattern) ?? DEFAULT_PATTERN;
-  if (pattern === "none") return null;
-  const ink = patternInk(pattern, derivePalette(theme, s.bg).accent, s);
-  if (!ink) return null;
-  return (
-    `/* background motif: ${pattern} (v0.6.0) */\n` +
-    `.index-hero,.post-header{--pattern-ink:${ink};${PATTERN_LAYERS[pattern]}}\n` +
-    box
-  );
-}
 
 function designKnobCss(theme: ThemeCssInput, s: ResolvedSurface): string[] {
   const parts: string[] = [];
@@ -555,7 +414,8 @@ function designKnobCss(theme: ThemeCssInput, s: ResolvedSurface): string[] {
     );
   }
 
-  const pattern = patternCss(theme, s);
+  // The v0.6.0 motif path unless a v0.7.0 motif key is set (./fidelity.ts).
+  const pattern = motifCss(theme, s);
   if (pattern) parts.push(pattern);
 
   const weight = parseHeadingWeight(theme.heading_weight);

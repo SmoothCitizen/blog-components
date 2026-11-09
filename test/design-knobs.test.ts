@@ -200,7 +200,7 @@ describe("parsing: defaults + per-key validation (never throws)", () => {
       drop_cap: "true",
       list_marker: "star",
       heading_accent: 1,
-      date_format: "short",
+      date_format: "medium",
       logo_mark_key: "https://example.com/mark.png",
       header_align: "left",
       hero: { title: "Welcome", eyebrow: "x".repeat(61) },

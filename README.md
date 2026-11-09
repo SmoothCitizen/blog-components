@@ -176,6 +176,100 @@ on pages that pass it:
 }
 ```
 
+### v0.7.0 keys — closer matches to an existing design (all optional)
+
+A blog that sets none of these (or sets each to its default) renders byte-identically to v0.6.1
+(asserted against `test/fixtures/v0_6_1-markup.json`, captured from v0.6.1 with every v0.6.0 knob
+in use, and against the v0.5.0 fixture). Same validation rules as v0.6.0: every key is checked on
+its own, an invalid value is dropped (the default is used) and never throws, enums are
+allow-listed, colours are strict hexes, lengths are pattern-checked and numbers are bounded — and
+the stylesheet layer re-validates all of them, so a values file cannot inject CSS. The motif,
+scrim, wash, inverse hero and eyebrow colours are contrast-guarded (see the notes).
+
+**Motifs + hero / post header**
+
+| Key | Values (default first) | Notes |
+|---|---|---|
+| `pattern_strength` | `"subtle"` \| `"medium"` \| `"bold"` | `subtle` = the v0.6.0 guarded motif. `medium`/`bold` draw the motif much stronger (built-in weight ×2.5 / ×4.5, capped; image opacity 0.5 / 0.9) and put a **text-safe scrim** behind the text block (`.index-hero-text`, `.post-header-text`): the surface colour at the smallest alpha that keeps the ink + muted text readable over the worst motif pixel. |
+| `pattern_position` | `"cover"` \| `"top-left"` \| `"top-right"` \| `"center"` \| `"top"` | Where the motif shows (a CSS mask fades it out elsewhere). `top` is a band along the top edge. |
+| `post_header_pattern` | a `pattern` value, or unset | The post-header motif; unset = the hero's motif, `"none"` = no motif on the post header. |
+| `post_header_pattern_image_key` | path under `public/` (`.svg` / `.png` / `.webp`) | A custom image for the post header only (wins over `post_header_pattern`). |
+| `hero_wash` | `{ from: hex, to: hex, angle?: 0–360 }` (angle `135`) | A soft two-colour gradient behind the hero and the post header. Each colour is mixed into the surface (≤ 30%), stepped down until the text keeps its contrast; skipped if nothing passes. Both hexes required. |
+| `hero_style` | `"panel"` \| `"flat"` \| `"inverse"` | `flat`: no panel or box, a bottom hairline (side padding drops when there is no motif or wash). `inverse`: the hero and post header use the page ink as background and the page bg as text (AA by the surface guard), with a re-guarded accent and muted. |
+| `hero.title_accent` | text ≤ 80 chars | An italic phrase in the accent appended to the hero title. |
+| `post_header_eyebrow` | text ≤ 40 chars | A small label above every post title. |
+| `post_header_align` | `"left"` \| `"center"` | Centers the post title block (and the divider under it). |
+| `post_meta_layout` | `"classic"` \| `"split"` | `split`: date (+ reading time) as a label above the title, the byline under the description. |
+| `description_style` | `"normal"` \| `"italic"` | The post description (dek). |
+| `divider` | `"accent"` \| `"none"` \| `"line"` \| `"ticks"` \| `"cross"` | The rule under page titles: the accent bar, nothing, a hairline, or a tick / cross-hatch ornament. |
+
+The post title block is wrapped in `<header class="post-header">` when a motif, wash,
+`inverse` style, eyebrow, centered align or split meta needs it (`postHeaderMode`).
+
+**Post lists + metadata**
+
+| Key | Values (default first) | Notes |
+|---|---|---|
+| `post_list_variant` | adds `"numbered"` | An `<ol>` with large decorative `01`/`02`… numbers (`aria-hidden`), the date as a small label, title, excerpt and byline. Numbering restarts per page. |
+| `post_list_columns` | `1` \| `2` (unset = auto-fill) | Cards (and the `grid` layout). `2` drops to one column under 640px. |
+| `card_meta` | `"date_reading"` \| `"author_date"` \| `"date_author"` | `date_reading` = the v0.6.0 card. The other two put author + date in one row and drop the separate byline row. |
+| `card_meta_position` | `"top"` \| `"bottom"` | Meta row above the title or under the excerpt. |
+| `card_style` | `"raised"` \| `"flat"` | `flat`: no shadow / lift; hover tints the border. |
+| `card_cta_position` | `"bottom"` \| `"inline"` | `inline`: the CTA sits at the end of the last meta row. |
+| `card_feature_first` | boolean (`false`) | The first card spans the full row, with a larger title. |
+| `card_feature_label` | text ≤ 24 chars | A small label on the featured card. |
+| `excerpt_lines` | `2`–`6` | Clamps card / numbered / journal / grid excerpts. |
+| `byline_prefix` | text ≤ 12 chars | E.g. `By` before the author name (post, card and numbered bylines). |
+| `byline_order` | `"date_author"` \| `"author_date"` | The post byline order. |
+| `meta_separator` | `"dot"` \| `"slash"` \| `"pipe"` | ` · ` / ` / ` / ` \| ` between metadata items. |
+| `meta_case` | `"none"` \| `"uppercase"` | Post + list metadata; tracking = `label_tracking` (else `.06em`). |
+| `author_style` | `"accent"` \| `"ink"` \| `"underline"` \| `"italic"` | The author name in metadata (`italic` = italic list bylines). |
+| `post_title_color` | `"accent"` \| `"ink"` | Post titles in the list (hover goes to the accent). |
+| `date_format` | adds `"short"` | Abbreviated month in the page language: `Jul 4, 2026` (en), `4 Jul 2026` (en-GB). |
+| `date_order` | `"mdy"` \| `"dmy"` (unset = the locale's) | Forces the order for `short`; a locale with a numeric month (ja, zh, ko) keeps its own. |
+
+**Labels, header, footer**
+
+| Key | Values (default first) | Notes |
+|---|---|---|
+| `eyebrow_color` | `"muted"` \| `"accent"` \| `"accent2"` | Hero eyebrow, post-header eyebrow, tagline-above. Guarded to AA against the bg, panel and header/footer tints (and separately inside an `inverse` hero). |
+| `accent_color_2` | hex | The second accent for `eyebrow_color: "accent2"`; alone it does nothing. |
+| `label_tracking` | `0` or a length (same rule as `letter_spacing`) | Letter-spacing for eyebrows, the index label, the feature label and the footer link label. |
+| `label_font` | `"body"` \| `"heading"` \| `"mono"` (unset = as before) | Font for the same labels. |
+| `index_label_style` | `"rule"` \| `"bar"` | `bar`: a short accent bar before the label, no trailing rule. |
+| `content_width` | `560`–`1100` (px, unset = 820) | Max width of the content column (header row too with `header_align: "content"`). |
+| `brand_size` | `"sm"` \| `"md"` \| `"lg"` | Text wordmark in the header: 20 / 26 / 34px. |
+| `header_surface` | `"tint"` \| `"bg"` \| `"panel"` (unset = per header variant) | Header background. |
+| `tagline_position` | `"inline"` \| `"above"` | `above`: the tagline becomes a small uppercase eyebrow over the brand. |
+| `nav_font` | `"body"` \| `"mono"` | `mono` uses `mono_font`. |
+| `nav_size` | `"md"` \| `"sm"` | `sm` = 13px. |
+| `nav_style` | `"plain"` \| `"ruled"` | `ruled`: hairlines either side of the nav (centered header). |
+| `footer_variant` | `"plain"` \| `"band"` \| `"columns"` | `band`: a filled band with an accent top rule and the brand row. `columns`: brand + tagline left, a labelled link column right (the header nav links or Home/About/Authors, the disclosure pages when on, RSS), legal row under a hairline. |
+| `footer_surface` | `"panel"` \| `"bg"` \| `"sunken"` (unset = the secondary tint) | `sunken` moves the bg away from the ink (more contrast). |
+| `footer_align` | `"left"` \| `"center"` | |
+| `footer_links_label` | text ≤ 24 chars | The `columns` link-column label; unset = `Links`. |
+| `heading_case_scope` | `"all"` \| `"display"` | With `heading_case: "uppercase"`, `display` keeps h2–h4 in their own case. |
+
+```json
+{
+  "brand_name": "Example Blog",
+  "content_width": 720,
+  "pattern": "grid",
+  "pattern_strength": "bold",
+  "pattern_position": "top-right",
+  "post_header_pattern": "dots",
+  "hero_wash": { "from": "#e3efe7", "to": "#f6e1da" },
+  "eyebrow_color": "accent",
+  "post_list_variant": "cards",
+  "post_list_columns": 1,
+  "card_meta": "author_date",
+  "meta_case": "uppercase",
+  "byline_prefix": "By",
+  "date_format": "short",
+  "footer_variant": "columns"
+}
+```
+
 ### Markdown bodies
 
 `MarkdownBody` covers `#`–`###` headings, paragraphs, `- ` lists, `[text](href)` links, `**bold**`,

@@ -8,6 +8,75 @@ All notable changes to the blog components package. Versions follow
 - **major** — anything a pinned repo must adapt to (a required key, a renamed export,
   a changed file layout, a changed visibility rule).
 
+## [0.7.0] — 2026-11-09
+
+New optional theme keys so a site can match an existing design more
+closely. Minor: new optional keys only. No key, prop default or export
+was removed or renamed. A config that sets none of the new keys (or sets
+each one to its default) renders byte-identically to v0.6.1. This is
+asserted against the new `test/fixtures/v0_6_1-markup.json`, which was
+captured from the unchanged v0.6.1 components with every v0.6.0 knob in use.
+The v0.5.0, v0.3.1 and v0.2.0 fixtures are untouched and still hold.
+
+- **Motif strength and placement.** `pattern_strength`
+  (`subtle` | `medium` | `bold`) and `pattern_position`
+  (`cover` | `top-left` | `top-right` | `center` | `top`).
+  - `subtle` keeps the v0.6.0 guarded motif.
+  - `medium` and `bold` draw the motif much stronger. A text-safe scrim then
+    sits behind the hero and post-header text block. The scrim uses the
+    surface colour at the smallest alpha that keeps the ink and muted text
+    readable over the worst motif pixel (new `scrimAlpha`).
+  - Non-`cover` positions confine the motif with a CSS mask.
+- **Separate motifs.** `post_header_pattern` and
+  `post_header_pattern_image_key` set the post-header motif. Unset means the
+  same motif as the hero; `post_header_pattern: "none"` means no motif.
+  - The post-header image is exposed as `--pattern-image-post`. Like
+    `--pattern-image`, it is appended after class prefixing.
+- **Hero wash and style.** `hero_wash` (`{ from, to, angle? }`, both strict
+  hexes) is a soft gradient. Its colours are mixed into the surface and
+  stepped down until the text keeps its contrast (new `washColors`).
+  `hero_style`:
+  - `flat`: no panel.
+  - `inverse`: the page ink becomes the background, with a re-guarded accent
+    and muted (new `inverseSurface`).
+  - Also new: `hero.title_accent`, an italic phrase in the accent.
+- **Post header.** New keys: `post_header_eyebrow`, `post_header_align`,
+  `post_meta_layout: "split"` and `description_style`.
+  - `divider` (`accent` | `none` | `line` | `ticks` | `cross`) replaces the
+    accent rule.
+  - The post page now decides its `.post-header` wrapper with the new
+    `postHeaderMode(theme)` instead of `hasPattern`. `hasPattern` is still
+    exported and unchanged.
+  - With `medium`/`bold` motifs, the text sits in `.post-header-text`.
+- **Lists and cards.**
+  - `post_list_variant: "numbered"`: new `PostNumbered`, an `<ol>` with
+    decorative `01`/`02` numbers.
+  - Card layout keys: `post_list_columns` (`1` | `2`), `card_meta`
+    (`date_reading` | `author_date` | `date_author`), `card_meta_position`,
+    `card_style: "flat"`, `card_cta_position: "inline"`,
+    `card_feature_first` and `card_feature_label`.
+  - Text keys: `excerpt_lines` (2–6), `byline_prefix`, `byline_order`,
+    `meta_separator`, `meta_case`, `author_style` and `post_title_color`.
+- **Dates.** `date_format: "short"` gives `Jul 4, 2026` (en) and
+  `4 Jul 2026` (en-GB). `date_order` (`mdy` | `dmy`) forces the order.
+  `formatDisplayDate` takes an optional fourth `order` argument.
+- **Labels.** `eyebrow_color` (`muted` | `accent` | `accent2`) uses the new
+  `accent_color_2`. The colour is guarded to AA against every surface the
+  label sits on (new `guardAgainst`). Also new: `label_tracking`,
+  `label_font` and `index_label_style: "bar"`.
+- **Header.** `content_width` (560–1100px), `brand_size`, `header_surface`,
+  `tagline_position: "above"`, `nav_font: "mono"`, `nav_size: "sm"` and
+  `nav_style: "ruled"`.
+- **Footer.** `footer_variant` (`plain` | `band` | `columns`),
+  `footer_surface` (`panel` | `bg` | `sunken`), `footer_align` and
+  `footer_links_label`.
+- **Heading case scope.** `heading_case_scope: "display"` keeps h2–h4 in
+  their own case under `heading_case: "uppercase"`.
+- **Internal.** The motif code moved from `css.ts` to `theme/pattern.ts`, and
+  `css.ts` re-exports the same names. The new stylesheet logic lives in
+  `theme/fidelity.ts`. `PostTheme` is now `Partial<ThemeConfig>`, which
+  widens the type, so existing callers still compile.
+
 ## [0.6.1] — 2026-11-09
 
 Patch: two layout fixes, no contract change (no key, prop default or export

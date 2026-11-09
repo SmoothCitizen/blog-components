@@ -193,6 +193,7 @@ describe("parseHero", () => {
     ).toEqual({
       eyebrow: null,
       title: "Welcome to Example Blog",
+      title_accent: null,
       subtitle: "Notes and guides.",
       image_key: "images/hero.jpg",
       image_alt: "A desk",
@@ -210,7 +211,7 @@ describe("parseHero", () => {
         cta: { label: "Go", href: "javascript:alert(1)" },
         align: "right",
       }),
-    ).toEqual({ eyebrow: null, title: "Welcome", subtitle: null, image_key: null, image_alt: "", cta: null, align: "left" });
+    ).toEqual({ eyebrow: null, title: "Welcome", title_accent: null, subtitle: null, image_key: null, image_alt: "", cta: null, align: "left" });
     expect(parseHero({ title: "W", image_key: "../secret.png" })?.image_key).toBeNull();
     expect(parseHero({ title: "W", cta: { label: "Go", href: "//example.com" } })?.cta).toBeNull();
     expect(parseHero({ title: "W", cta: { href: "/x" } })?.cta).toBeNull();
