@@ -317,6 +317,17 @@ export interface ThemeConfig {
   description_style: DescriptionStyle;
   divider: DividerStyle;
   heading_case_scope: HeadingCaseScope;
+  // v0.8.0 colour roles. Each is an optional strict hex; absent = the role's
+  // previous colour, so a config that sets none renders byte-identically.
+  //   - `link_color`: post-list title links, byline author links, footer links
+  //     and in-body links (default = the accent).
+  //   - `rule_color`: the short decorative accent bar under a page heading
+  //     (`.accent-rule`; default = the accent).
+  //   - `meta_color`: dates / bylines / reading-time meta text (default = the
+  //     muted colour).
+  link_color: string | null;
+  rule_color: string | null;
+  meta_color: string | null;
 }
 
 export const LAYOUT_VARIANTS: readonly LayoutVariant[] = ["journal", "grid", "minimal"];
@@ -715,6 +726,11 @@ export function parseTheme(raw: unknown): ThemeConfig {
     description_style: oneOf(DESCRIPTION_STYLES, t.description_style, "normal"),
     divider: oneOf(DIVIDER_STYLES, t.divider, "accent"),
     heading_case_scope: oneOf(HEADING_CASE_SCOPES, t.heading_case_scope, "all"),
+    // v0.8.0 — validated as strict hexes (like `accent_color_2`); the css layer
+    // re-normalizes and (for the text roles) contrast-guards them.
+    link_color: hexString(t.link_color),
+    rule_color: hexString(t.rule_color),
+    meta_color: hexString(t.meta_color),
   };
 }
 

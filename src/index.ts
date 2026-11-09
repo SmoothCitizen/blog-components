@@ -227,6 +227,7 @@ export {
   TABLE_MIN_COLUMN_EM,
 } from "./content/markdown";
 export type { MarkdownBlock, TableAlign } from "./content/markdown";
+export { stripLeadingBodyHeadline } from "./content/html-body";
 export { readingMinutes, bodyText, WORDS_PER_MINUTE, CJK_CHARS_PER_MINUTE } from "./content/reading-time";
 export {
   aboutPageMarkdown,

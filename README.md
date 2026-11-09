@@ -270,6 +270,35 @@ The post title block is wrapped in `<header class="post-header">` when a motif, 
 }
 ```
 
+### v0.8.0 keys — colour roles (all optional)
+
+Three roles that were hard-wired to the accent / muted token get their own optional colour.
+A blog that sets none of these renders byte-identically to v0.7.0. Each is a strict hex,
+validated like `accent_color_2`; an absent or invalid value keeps the role's previous colour.
+The text roles (`link_color`, `meta_color`) are contrast-guarded to AA against the page
+background, as the accent is; `rule_color` is a decorative bar and is only re-serialized.
+
+| Key | Type | Notes |
+|---|---|---|
+| `link_color` | hex | The generic link colour: post-list title links, byline author links, footer links and in-body links (`--link`; `a` / `a:hover`). Hover keeps its underline, so the state stays distinguishable without relying on colour. Default = the accent. Card titles and `post_title_color: "ink"` stay ink; `author_style` overrides still apply. |
+| `rule_color` | hex | The short decorative accent bar under a page heading (`--rule`; `.accent-rule`). Default = the accent. A non-accent `divider` still wins. |
+| `meta_color` | hex | Dates, bylines and reading-time meta text (`--meta`; `.post-meta`). Default = the muted colour. |
+
+```json
+{
+  "brand_name": "Example Blog",
+  "link_color": "#2b5fa8",
+  "rule_color": "#c2410c",
+  "meta_color": "#6b7280"
+}
+```
+
+A generated post body opens with its own `<article><header><h1>…</h1></header>…`. The post page
+already renders the title as its `<h1>`, so `PostBody` strips that one leading body headline (and
+the `<header>` it empties) from an HTML body before rendering it — only the first `<h1>`, and only
+when it leads the article. Markdown bodies and bodies with no leading `<h1>` are unchanged
+(`stripLeadingBodyHeadline`).
+
 ### Markdown bodies
 
 `MarkdownBody` covers `#`–`###` headings, paragraphs, `- ` lists, `[text](href)` links, `**bold**`,

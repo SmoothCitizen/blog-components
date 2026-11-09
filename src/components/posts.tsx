@@ -24,6 +24,7 @@ import {
 import { formatDisplayDate } from "../util";
 import { postLang } from "../content/languages";
 import { MarkdownBody, resolveBodyFormat } from "../content/markdown";
+import { stripLeadingBodyHeadline } from "../content/html-body";
 import { readingMinutes } from "../content/reading-time";
 import { LanguageSwitch, type LanguageSwitchEntry } from "./chrome";
 import { PaidPlacementCallout, showPaidPlacement } from "./disclosure";
@@ -85,7 +86,9 @@ export function PostBody({
       </div>
     );
   }
-  return <div className={c("post-body")} dangerouslySetInnerHTML={{ __html: post.html }} />;
+  // Drop the body's own leading headline so it does not duplicate the post
+  // page's <h1> title block (markdown bodies are untouched — see the helper).
+  return <div className={c("post-body")} dangerouslySetInnerHTML={{ __html: stripLeadingBodyHeadline(post.html) }} />;
 }
 
 // The post's display date in the theme's `date_format`, in the post's own

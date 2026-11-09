@@ -10,6 +10,7 @@ import { fidelityCss, motifCss, motifImageVars } from "./fidelity";
 import {
   AA_CONTRAST,
   contrastRatio,
+  guardAccent,
   mix,
   normalizeHex,
   paletteCssVars,
@@ -376,6 +377,10 @@ function optionalCss(theme: ThemeCssInput, surface: ResolvedSurface): string {
   }
 
   parts.push(...designKnobCss(theme, surface));
+  // v0.8.0 colour roles: [] when none is set. Appended BEFORE the fidelity
+  // blocks so a non-accent `divider` (which also restyles `.accent-rule`) still
+  // overrides the rule-colour block.
+  parts.push(...colorRoleCss(theme, surface));
   // v0.7.0 fidelity keys: [] when none is set (byte-identical to v0.6.1).
   parts.push(...fidelityCss(theme, surface));
 
@@ -383,6 +388,49 @@ function optionalCss(theme: ThemeCssInput, surface: ResolvedSurface): string {
   // newline here yields exactly one blank-line separator (the block style used
   // throughout the stylesheet).
   return parts.length ? `\n${parts.join("\n\n")}\n` : "";
+}
+
+// ---------------------------------------------------------------------------
+// v0.8.0 colour roles
+// ---------------------------------------------------------------------------
+
+// Three roles that were hard-wired to the accent / muted token get their own
+// optional colour. Each block is emitted ONLY when its key is set (so a config
+// that sets none is byte-identical, and an absent key keeps the accent / muted
+// colour), and re-points the role's selectors at a new variable:
+//   - `--link`  the generic `<a>` colour: post-list title links, byline author
+//     links, footer links and in-body links.
+//   - `--rule`  the decorative accent bar under a page heading (`.accent-rule`).
+//   - `--meta`  the metadata text (`.post-meta`): dates, bylines, reading time.
+// `link_color` and `meta_color` carry text, so they are contrast-guarded to AA
+// against the page background (as the accent is); `rule_color` is a decorative
+// bar and is only re-serialized.
+function colorRoleCss(theme: ThemeCssInput, s: ResolvedSurface): string[] {
+  const parts: string[] = [];
+
+  const link = normalizeHex(theme.link_color);
+  if (link) {
+    // Hover keeps the underline (a non-colour cue), so the link colour itself
+    // need not change on hover to stay distinguishable.
+    parts.push(
+      `/* link colour (v0.8.0) */\n` +
+        `:root{--link:${guardAccent(link, s.bg)}}\n` +
+        `a{color:var(--link)}\n` +
+        `a:hover{color:var(--link);text-decoration:underline}`,
+    );
+  }
+
+  const rule = normalizeHex(theme.rule_color);
+  if (rule) {
+    parts.push(`/* rule colour (v0.8.0) */\n:root{--rule:${rule}}\n.accent-rule{background:var(--rule)}`);
+  }
+
+  const meta = normalizeHex(theme.meta_color);
+  if (meta) {
+    parts.push(`/* meta colour (v0.8.0) */\n:root{--meta:${guardAccent(meta, s.bg)}}\n.post-meta{color:var(--meta)}`);
+  }
+
+  return parts;
 }
 
 // ---------------------------------------------------------------------------

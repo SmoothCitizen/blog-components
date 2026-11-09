@@ -8,6 +8,37 @@ All notable changes to the blog components package. Versions follow
 - **major** — anything a pinned repo must adapt to (a required key, a renamed export,
   a changed file layout, a changed visibility rule).
 
+## [0.8.0] — 2026-11-10
+
+Three new optional theme colour keys, and a fix that drops the duplicate
+headline on a generated post page. Minor: new optional keys only, no key,
+prop default or export was removed or renamed. A config that sets none of
+the new keys renders byte-identically to v0.7.0 (asserted against the
+existing `v0_6_1`, `v0_5_0`, `v0_3_1` and `v0_2_0` fixtures, all untouched).
+
+- **Colour roles.** Each is an optional strict hex, validated like
+  `accent_color_2`; absent means the role keeps its previous colour, so the
+  stylesheet is byte-identical. Each is emitted only when set, re-pointing the
+  role's selectors at a new CSS variable.
+  - `link_color` (default = the accent) — the generic link colour: post-list
+    title links, byline author links, footer links and in-body links
+    (`--link`; `a` / `a:hover`). Hover keeps its underline, so the state stays
+    distinguishable without relying on colour. Carries text, so it is
+    contrast-guarded to AA against the page background (as the accent is).
+  - `rule_color` (default = the accent) — the short decorative accent bar under
+    a page heading (`--rule`; `.accent-rule`). A decorative bar, so it is only
+    re-serialized, not contrast-guarded. A non-accent `divider` still wins.
+  - `meta_color` (default = the muted colour) — dates, bylines and reading-time
+    meta text (`--meta`; `.post-meta`). Contrast-guarded to AA like `link_color`.
+- **No duplicate headline on the post page.** A generated post body opens with
+  its own `<article><header><h1>…</h1></header>…`, which repeated the <h1> the
+  post page already renders from the title. `PostBody` now strips that one
+  leading headline (and the `<header>` it empties) from an HTML body before
+  rendering it. Only the first `<h1>`, and only when it leads the article (an
+  `<h1>` after `<h2>`/`<p>`/`<section>` content is kept). Markdown bodies and
+  bodies with no leading `<h1>` are unchanged. New export
+  `stripLeadingBodyHeadline`.
+
 ## [0.7.0] — 2026-11-09
 
 New optional theme keys so a site can match an existing design more
