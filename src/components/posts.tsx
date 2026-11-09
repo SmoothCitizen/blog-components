@@ -8,7 +8,7 @@ import type { FaqItem, Post } from "../content/types";
 import { authorBySlug, type Author, type SiteConfig } from "../site/schema";
 import { authorPath, indexPagePath, postPathFor } from "../seo/urls";
 import { classer } from "../theme/classes";
-import type { ThemeConfig } from "../theme/schema";
+import type { ThemeConfig, ThemeHero } from "../theme/schema";
 import { toIsoDate } from "../util";
 import { MarkdownBody, resolveBodyFormat } from "../content/markdown";
 import { LanguageSwitch, type LanguageSwitchEntry } from "./chrome";
@@ -126,6 +126,19 @@ export function PostIndex({
   classPrefix?: string;
 }) {
   const c = classer(classPrefix);
+  // The hero (v0.5.0) opens page 1 only, and its title IS the page's single
+  // <h1> — the brand-name heading is not emitted alongside it. Later pages (and
+  // a theme with no hero) keep the brand-name heading exactly as before.
+  const hero = page <= 1 ? (theme.hero ?? null) : null;
+  if (hero) {
+    return (
+      <>
+        <IndexHero hero={hero} classPrefix={classPrefix} />
+        <PostList posts={posts} site={site} classPrefix={classPrefix} />
+        <Pagination page={page} totalPages={totalPages} classPrefix={classPrefix} />
+      </>
+    );
+  }
   return (
     <>
       <h1>
@@ -136,6 +149,36 @@ export function PostIndex({
       <PostList posts={posts} site={site} classPrefix={classPrefix} />
       <Pagination page={page} totalPages={totalPages} classPrefix={classPrefix} />
     </>
+  );
+}
+
+// The blog-index hero block (v0.5.0), rendered by PostIndex from `theme.hero`.
+// Every field was validated by parseTheme: the image path is a safe path under
+// the site's public dir (served at the root, like the header logo) and the CTA
+// href is `/`-relative or `https://` (an external target gets rel="noopener").
+// Text renders as escaped text nodes.
+export function IndexHero({ hero, classPrefix = "" }: { hero: ThemeHero; classPrefix?: string }) {
+  const c = classer(classPrefix);
+  const imageSrc = hero.image_key ? `/${hero.image_key}` : null;
+  const cta = hero.cta;
+  return (
+    <section
+      className={c("index-hero", `index-hero-${hero.align}`, imageSrc ? "index-hero-has-image" : "")}
+      aria-labelledby="index-hero-title"
+    >
+      <div className={c("index-hero-text")}>
+        <h1 id="index-hero-title">{hero.title}</h1>
+        {hero.subtitle ? <p className={c("index-hero-subtitle")}>{hero.subtitle}</p> : null}
+        {cta ? (
+          <p className={c("index-hero-cta")}>
+            <a className={c("btn")} href={cta.href} rel={cta.href.startsWith("https://") ? "noopener" : undefined}>
+              {cta.label}
+            </a>
+          </p>
+        ) : null}
+      </div>
+      {imageSrc ? <img className={c("index-hero-image")} src={imageSrc} alt={hero.image_alt} /> : null}
+    </section>
   );
 }
 

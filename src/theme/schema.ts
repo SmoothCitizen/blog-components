@@ -74,6 +74,55 @@ export interface NavLink {
   style: NavLinkStyle | null;
 }
 
+// Optional blog-index hero block (v0.5.0). When set, page 1 of the index opens
+// with a `<section>` carrying the hero `<h1>` (in place of the brand-name
+// heading — the page still has exactly one h1), an optional subtitle, an
+// optional call-to-action button and an optional image. Null = no hero (the
+// index renders exactly as before).
+//   - `title` is required plain text (<= HERO_TITLE_MAX chars) — without it the
+//     whole hero is dropped.
+//   - `subtitle` is optional plain text (<= HERO_SUBTITLE_MAX chars).
+//   - `image_key` is a path under the site's `public/` dir (served at the site
+//     root), validated by `safePublicPath` with an image extension. Invalid =
+//     no image (the hero still renders). `image_alt` is its alt text ("" =
+//     decorative).
+//   - `cta` needs both a plain-text `label` (<= HERO_CTA_LABEL_MAX) and an
+//     `href` that passes `isSafeNavHref`; otherwise the button is dropped.
+//   - `align` is "left" (default) or "center".
+export type HeroAlign = "left" | "center";
+export interface ThemeHeroCta {
+  label: string;
+  href: string;
+}
+export interface ThemeHero {
+  title: string;
+  subtitle: string | null;
+  image_key: string | null;
+  image_alt: string;
+  cta: ThemeHeroCta | null;
+  align: HeroAlign;
+}
+
+// A self-hosted font file (v0.5.0). Each valid entry emits one `@font-face`
+// rule (font-display: swap) whose src is the file served from the site's own
+// `public/` dir — no third-party font origin. The family is then used by
+// naming it in `fonts.heading` / `fonts.body` (e.g. `"Example Sans", sans-serif`).
+//   - `family`: letters/digits/spaces/hyphens/underscores only (<= 60 chars).
+//   - `src`: a relative path under `public/` ending in `.woff2` or `.woff`
+//     (`safePublicPath`: no `..`, no scheme, no `//`, no CSS-significant chars).
+//   - `weight`: "100".."900" in steps of 100, "normal", "bold", or a variable
+//     range like "100 900". Default "400".
+//   - `style`: "normal" (default) or "italic".
+// Invalid entries are dropped individually; the list is capped at
+// FONT_FILES_MAX.
+export type FontFileStyle = "normal" | "italic";
+export interface FontFile {
+  family: string;
+  src: string;
+  weight: string;
+  style: FontFileStyle;
+}
+
 export interface ThemeConfig {
   brand_name: string;
   tagline: string | null;
@@ -110,6 +159,11 @@ export interface ThemeConfig {
   logo_key: string | null;
   about_text: string | null;
   contact_email: string | null;
+  // Optional index hero (v0.5.0, see ThemeHero). Null = no hero.
+  hero: ThemeHero | null;
+  // Optional self-hosted font files (v0.5.0, see FontFile). [] = none (fonts
+  // come only from the `font_pair` / `fonts` system stacks, as before).
+  font_files: FontFile[];
 }
 
 export const LAYOUT_VARIANTS: readonly LayoutVariant[] = ["journal", "grid", "minimal"];
@@ -129,6 +183,18 @@ export const NAV_LABEL_MAX = 30;
 export const NAV_LINK_TYPES: readonly NavLinkType[] = ["link", "language_switch"];
 export const LOGO_WIDTH_MIN = 60;
 export const LOGO_WIDTH_MAX = 320;
+export const HERO_ALIGNS: readonly HeroAlign[] = ["left", "center"];
+export const DEFAULT_HERO_ALIGN: HeroAlign = "left";
+export const HERO_TITLE_MAX = 120;
+export const HERO_SUBTITLE_MAX = 300;
+export const HERO_CTA_LABEL_MAX = 40;
+export const HERO_IMAGE_ALT_MAX = 200;
+export const HERO_IMAGE_EXTENSIONS: readonly string[] = ["png", "jpg", "jpeg", "webp", "avif", "gif", "svg"];
+export const FONT_FILES_MAX = 12;
+export const FONT_FILE_EXTENSIONS: readonly string[] = ["woff2", "woff"];
+export const FONT_FILE_STYLES: readonly FontFileStyle[] = ["normal", "italic"];
+export const DEFAULT_FONT_WEIGHT = "400";
+export const DEFAULT_FONT_STYLE: FontFileStyle = "normal";
 
 const optionalString = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
@@ -220,6 +286,109 @@ function parseLogoWidth(value: unknown): number | null {
   return n;
 }
 
+// A path to a file served from the site's own `public/` dir (v0.5.0). Used for
+// font-file `src` (interpolated into a <style> block) and hero `image_key`, so
+// it is validated strictly rather than escaped:
+//   - one optional leading `/` is tolerated and stripped; any further leading
+//     `/` (protocol-relative `//`) is rejected;
+//   - only letters, digits, `.`, `_`, `-` and `/` — so no scheme (`:`), no
+//     quotes, parens, spaces, `;`, `{}`, `<>`, `\`, `%`, `?` or `#` that could
+//     break out of a CSS `url("…")` or point off-site;
+//   - no empty, `.` or `..` path segment (no traversal);
+//   - the extension (case-insensitive) must be one of `extensions`.
+// Returns the normalized path (no leading slash) or null.
+export const PUBLIC_PATH_MAX = 200;
+const PUBLIC_PATH_RE = /^[A-Za-z0-9_-][A-Za-z0-9._/-]*$/;
+
+export function safePublicPath(value: unknown, extensions: readonly string[]): string | null {
+  const raw = optionalString(value);
+  if (!raw) return null;
+  const path = raw.startsWith("/") ? raw.slice(1) : raw;
+  if (path.length === 0 || path.length > PUBLIC_PATH_MAX || !PUBLIC_PATH_RE.test(path)) return null;
+  const segments = path.split("/");
+  if (segments.some((s) => s === "" || s === "." || s === "..")) return null;
+  const last = segments[segments.length - 1] ?? "";
+  const dot = last.lastIndexOf(".");
+  if (dot <= 0) return null;
+  const ext = last.slice(dot + 1).toLowerCase();
+  return extensions.includes(ext) ? path : null;
+}
+
+// Plain text bounded to `max` chars (after trim); anything else is null.
+function boundedText(value: unknown, max: number): string | null {
+  const v = optionalString(value);
+  return v && v.length <= max ? v : null;
+}
+
+function parseHeroCta(value: unknown): ThemeHeroCta | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const label = boundedText(raw.label, HERO_CTA_LABEL_MAX);
+  const href = optionalString(raw.href);
+  if (!label || !href || !isSafeNavHref(href)) return null;
+  return { label, href };
+}
+
+// The index hero. A missing / over-long title drops the whole hero (null = the
+// index renders as before); every other field degrades on its own.
+export function parseHero(value: unknown): ThemeHero | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const title = boundedText(raw.title, HERO_TITLE_MAX);
+  if (!title) return null;
+  return {
+    title,
+    subtitle: boundedText(raw.subtitle, HERO_SUBTITLE_MAX),
+    image_key: safePublicPath(raw.image_key, HERO_IMAGE_EXTENSIONS),
+    image_alt: boundedText(raw.image_alt, HERO_IMAGE_ALT_MAX) ?? "",
+    cta: parseHeroCta(raw.cta),
+    align: HERO_ALIGNS.find((a) => a === raw.align) ?? DEFAULT_HERO_ALIGN,
+  };
+}
+
+// A font family name is quoted into CSS, so it is restricted to characters that
+// can never close the quote or the rule.
+const FONT_FAMILY_RE = /^[A-Za-z0-9][A-Za-z0-9 _-]{0,59}$/;
+// A single weight (100-900 in steps of 100, normal, bold) or a variable-font
+// range "<lo> <hi>" with lo <= hi.
+const FONT_WEIGHT_RE = /^(normal|bold|[1-9]00|[1-9]00 [1-9]00)$/;
+
+function parseFontWeight(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") return DEFAULT_FONT_WEIGHT;
+  const v = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+  if (!FONT_WEIGHT_RE.test(v)) return null;
+  const parts = v.split(" ");
+  if (parts.length === 2 && Number(parts[0]) > Number(parts[1])) return null;
+  return v;
+}
+
+function parseFontFile(value: unknown): FontFile | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const family = optionalString(raw.family);
+  if (!family || !FONT_FAMILY_RE.test(family)) return null;
+  const src = safePublicPath(raw.src, FONT_FILE_EXTENSIONS);
+  if (!src) return null;
+  const weight = parseFontWeight(raw.weight);
+  if (!weight) return null;
+  const style = raw.style === undefined || raw.style === null ? DEFAULT_FONT_STYLE : FONT_FILE_STYLES.find((s) => s === raw.style);
+  if (!style) return null;
+  return { family, src, weight, style };
+}
+
+// Self-hosted font files: each entry validated independently (invalid ones are
+// dropped), capped at FONT_FILES_MAX. [] when absent.
+export function parseFontFiles(value: unknown): FontFile[] {
+  if (!Array.isArray(value)) return [];
+  const files: FontFile[] = [];
+  for (const entry of value) {
+    const file = parseFontFile(entry);
+    if (file) files.push(file);
+    if (files.length >= FONT_FILES_MAX) break;
+  }
+  return files;
+}
+
 // Validate + normalize a raw theme.json. `brand_name` is the one required key
 // (it is the site's visible name and the JSON-LD publisher); an unknown enum
 // value falls back to its default rather than failing the build, because the
@@ -261,6 +430,8 @@ export function parseTheme(raw: unknown): ThemeConfig {
     logo_key: optionalString(t.logo_key),
     about_text: optionalString(t.about_text),
     contact_email: optionalString(t.contact_email),
+    hero: parseHero(t.hero),
+    font_files: parseFontFiles(t.font_files),
   };
 }
 

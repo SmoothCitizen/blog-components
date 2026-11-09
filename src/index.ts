@@ -21,6 +21,20 @@ export {
   NAV_LINK_TYPES,
   LOGO_WIDTH_MIN,
   LOGO_WIDTH_MAX,
+  parseHero,
+  parseFontFiles,
+  safePublicPath,
+  HERO_ALIGNS,
+  DEFAULT_HERO_ALIGN,
+  HERO_TITLE_MAX,
+  HERO_SUBTITLE_MAX,
+  HERO_CTA_LABEL_MAX,
+  HERO_IMAGE_ALT_MAX,
+  HERO_IMAGE_EXTENSIONS,
+  FONT_FILES_MAX,
+  FONT_FILE_EXTENSIONS,
+  FONT_FILE_STYLES,
+  PUBLIC_PATH_MAX,
 } from "./theme/schema";
 export type {
   LayoutVariant,
@@ -35,8 +49,21 @@ export type {
   NavLink,
   NavLinkStyle,
   NavLinkType,
+  HeroAlign,
+  ThemeHero,
+  ThemeHeroCta,
+  FontFile,
+  FontFileStyle,
 } from "./theme/schema";
-export { FONT_PAIRS, resolveFont, resolveLayout, resolveSurface, themeCss, DARK_SURFACE_MAX_LUMINANCE } from "./theme/css";
+export {
+  FONT_PAIRS,
+  fontFaceCss,
+  resolveFont,
+  resolveLayout,
+  resolveSurface,
+  themeCss,
+  DARK_SURFACE_MAX_LUMINANCE,
+} from "./theme/css";
 export { classer, prefixStylesheet } from "./theme/classes";
 export { derivePalette, contrastRatio, guardAccent, normalizeHex, paletteCssVars, AA_CONTRAST } from "./theme/palette";
 
@@ -96,6 +123,7 @@ export {
   AuthorProfile,
   AuthorsIndex,
   FaqBlock,
+  IndexHero,
   Pagination,
   PostArticle,
   PostBody,

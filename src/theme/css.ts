@@ -1,6 +1,7 @@
 // The blog stylesheet: layout variant x font pair x palette, plus typography
-// for post bodies and the FAQ block. Fonts are self-contained system stacks (no
-// external font fetch, so no third-party origin on any page). Every color token
+// for post bodies and the FAQ block. Fonts are self-contained system stacks, or
+// (v0.5.0) font files the site serves itself via `font_files` — never an
+// external font fetch, so no third-party origin on any page. Every color token
 // comes from palette.ts, which validates and re-serializes each hex, so a theme
 // value can never inject arbitrary CSS.
 
@@ -12,6 +13,8 @@ import {
   DEFAULT_RADIUS,
   DEFAULT_SPACE,
   LAYOUT_VARIANTS,
+  parseFontFiles,
+  type FontFile,
   type ThemeConfig,
   type ThemeSurface,
 } from "./schema";
@@ -60,7 +63,17 @@ type ThemeCssInput = PaletteSource &
   Partial<
     Pick<
       ThemeConfig,
-      "fonts" | "radius" | "space" | "class_prefix" | "header_variant" | "post_variant" | "surface" | "nav_links" | "logo_width"
+      | "fonts"
+      | "radius"
+      | "space"
+      | "class_prefix"
+      | "header_variant"
+      | "post_variant"
+      | "surface"
+      | "nav_links"
+      | "logo_width"
+      | "hero"
+      | "font_files"
     >
   >;
 
@@ -251,7 +264,31 @@ article.post h1{font-size:34px;margin:8px 0 6px}
   // v0.2.0 config's stylesheet is byte-identical.
   const extra = optionalCss(theme);
   const full = extra ? `${css}${extra}` : css;
-  return prefixStylesheet(full.trim(), theme.class_prefix);
+  const prefixed = prefixStylesheet(full.trim(), theme.class_prefix);
+  // @font-face rules (v0.5.0) are prepended AFTER class prefixing: they carry
+  // no class selectors, and the prefixer would otherwise rewrite the `.woff2`
+  // in a src url. Absent font files → the stylesheet is unchanged.
+  const faces = fontFaceCss(theme.font_files ?? []);
+  return faces ? `${faces}\n${prefixed}` : prefixed;
+}
+
+// One `@font-face` rule per self-hosted font file (v0.5.0), font-display: swap,
+// src served from the site root. Every entry is (re-)validated here through
+// the same allow-lists parseTheme uses (family/weight/style allow-listed, src a
+// `safePublicPath` with a woff2/woff extension) — so even a hand-built list
+// cannot close a quote, a rule or the <style> tag. "" when there are no files.
+export function fontFaceCss(files: readonly FontFile[]): string {
+  return parseFontFiles(files)
+    .map(
+      (f) =>
+        `@font-face{font-family:"${f.family}";src:url("/${f.src}") format("${fontFormat(f.src)}");` +
+        `font-weight:${f.weight};font-style:${f.style};font-display:swap}`,
+    )
+    .join("\n");
+}
+
+function fontFormat(src: string): "woff2" | "woff" {
+  return src.toLowerCase().endsWith(".woff2") ? "woff2" : "woff";
 }
 
 // The nav-pill, logo-width and `bar` header rules. Each is emitted only when the
@@ -278,6 +315,25 @@ function optionalCss(theme: ThemeCssInput): string {
     parts.push(
       `/* explicit logo width (v0.3.0) */\n` +
         `.site-header .logo{width:${theme.logo_width}px;height:auto}`,
+    );
+  }
+
+  if (theme.hero) {
+    // Index hero (v0.5.0): a raised panel on the page surface, heading in the
+    // page ink, subtitle muted, CTA on the guarded accent (`.btn`). Text and
+    // image stack on phones; a left-aligned hero with an image goes two-column
+    // from 720px. Every color is a surface/accent token, so it follows a dark
+    // surface automatically.
+    parts.push(
+      `/* index hero (v0.5.0) */\n` +
+        `.index-hero{margin:28px 0 8px;padding:28px 22px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);display:grid;gap:22px;align-items:center}\n` +
+        `.index-hero h1{font-size:clamp(28px,7vw,42px);margin:0;overflow-wrap:anywhere}\n` +
+        `.index-hero .index-hero-subtitle{color:var(--muted);font-size:19px;margin:10px 0 0;max-width:62ch}\n` +
+        `.index-hero .index-hero-cta{margin:20px 0 0}\n` +
+        `.index-hero .index-hero-image{display:block;width:100%;height:auto;max-height:420px;object-fit:cover;border-radius:var(--radius)}\n` +
+        `.index-hero-center{text-align:center;justify-items:center}\n` +
+        `.index-hero-center .index-hero-subtitle{margin-left:auto;margin-right:auto}\n` +
+        `@media (min-width:720px){.index-hero{padding:40px 36px}.index-hero-left.index-hero-has-image{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}}`,
     );
   }
 

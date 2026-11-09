@@ -94,6 +94,33 @@ A blog that sets none of these renders byte-identically to v0.3.1.
 | `logo_href` | `/`-relative or `https://` | Target for the header logo/brand link; unset = `/` (home). Validated like `nav_links.href` (`javascript:`/`data:`/`http:`/`//` rejected). An external `https://` target gets `rel="noopener"`. The link's aria-label stays `"<brand> home"`. |
 | `nav_links[].type: "language_switch"` | enum value | A nav entry that renders the language switcher (links/pill to the site's languages or a post's siblings) instead of a plain link. Carries no `label`/`href`. Hidden when the site has a single language. Plain entries default to `type: "link"` and are unchanged. |
 
+### v0.5.0 keys — index hero + self-hosted fonts (all optional)
+
+A blog that sets neither renders byte-identically to v0.4.0.
+
+| Key | Type | Notes |
+|---|---|---|
+| `hero` | `{ title, subtitle?, image_key?, image_alt?, cta?: { label, href }, align?: "left" \| "center" }` | Page 1 of the index opens with a `<section>` whose `<h1>` is `title` (it replaces the brand-name `<h1>` there — still one `<h1>` per page). `title` required (≤ 120 chars) or no hero; `subtitle` ≤ 300; `image_key` is a path under `public/` with an image extension; `image_alt` defaults to `""` (decorative); `cta.href` is validated like a nav href. Styled from the surface/accent tokens, so dark surfaces work unchanged. |
+| `font_files` | `[{ family, src, weight?, style? }]`, max 12 | One `@font-face` (`font-display: swap`) per entry, `src` served from the site's own `public/` dir. Use the family in `fonts.heading` / `fonts.body`. `src` must be a relative path ending `.woff2`/`.woff` (no `..`, no `//`, no scheme/absolute URL, no CSS-significant characters); `weight` `100`–`900` / `normal` / `bold` / a range like `"100 900"` (default `400`); `style` `normal` / `italic`. |
+
+```json
+{
+  "brand_name": "Example Blog",
+  "hero": {
+    "title": "Practical guides from Example Blog",
+    "subtitle": "Short, tested how-tos.",
+    "image_key": "images/hero.webp",
+    "image_alt": "",
+    "cta": { "label": "Start here", "href": "/posts/getting-started" },
+    "align": "left"
+  },
+  "font_files": [
+    { "family": "Example Sans", "src": "fonts/example-sans.woff2", "weight": "100 900", "style": "normal" }
+  ],
+  "fonts": { "heading": "\"Example Sans\", system-ui, sans-serif", "body": null }
+}
+```
+
 ### Multilingual routing + frontmatter (v0.4.0)
 
 A blog can carry posts in many languages. The site's default language is

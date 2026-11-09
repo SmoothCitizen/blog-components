@@ -8,6 +8,40 @@ All notable changes to the blog components package. Versions follow
 - **major** — anything a pinned repo must adapt to (a required key, a renamed export,
   a changed file layout, a changed visibility rule).
 
+## [0.5.0] — 2026-11-09
+
+Minor: two new optional theme keys. A config that sets neither renders
+byte-identically to v0.4.0 (`themeCss` output, header markup and the index
+heading are unchanged; the v0.2.0 / v0.3.1 fixtures still hold).
+
+- **Index hero (`hero`).** New optional theme key
+  `{ title, subtitle?, image_key?, image_alt?, cta?: { label, href }, align? }`.
+  When set, page 1 of the blog index opens with a `<section class="index-hero">`
+  whose `<h1>` is the hero title — it REPLACES the brand-name `<h1>` on that
+  page, so the index still has exactly one `<h1>`. Later index pages keep the
+  brand-name heading. `title` is required (<= 120 chars) or the whole hero is
+  dropped; `subtitle` (<= 300), `image_key` (a path under `public/`, image
+  extension), `image_alt` (default `""` = decorative) and `cta` (`href`
+  validated like a nav href; an external target gets `rel="noopener"`) each
+  degrade on their own; `align` is `"left"` (default) or `"center"`. Styled
+  only with the surface/accent tokens (`--panel`, `--line`, `--ink`, `--muted`,
+  `.btn` on the guarded accent), so it follows a dark `surface`; stacks on
+  phones, and a left-aligned hero with an image goes two-column from 720px.
+  New exports `IndexHero`, `parseHero`.
+- **Self-hosted fonts (`font_files`).** New optional theme key
+  `[{ family, src, weight?, style? }]` (max 12). Each valid entry emits an
+  `@font-face` rule (`font-display: swap`) whose `src` is served from the
+  site's own `public/` dir — no third-party font origin. Use the family by
+  naming it in `fonts.heading` / `fonts.body`. Validation: `family` is
+  letters/digits/spaces/`-`/`_` only; `src` must be a relative path under the
+  site (one leading `/` tolerated) ending in `.woff2` or `.woff` — `..`/`.`
+  segments, `//`, any scheme or absolute URL, quotes, parens, whitespace and
+  other CSS-significant characters are rejected; `weight` is `100`–`900` in
+  steps of 100, `normal`, `bold` or a variable range like `"100 900"`
+  (default `400`); `style` is `normal` (default) or `italic`. An invalid entry
+  is dropped on its own. New exports `fontFaceCss`, `parseFontFiles`,
+  `safePublicPath`.
+
 ## [0.4.0] — 2026-11-04
 
 Minor (0.x): multilingual publishing + rendering. A single-language blog that
