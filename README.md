@@ -299,6 +299,28 @@ the `<header>` it empties) from an HTML body before rendering it — only the fi
 when it leads the article. Markdown bodies and bodies with no leading `<h1>` are unchanged
 (`stripLeadingBodyHeadline`).
 
+### v0.9.0 keys — "back to all posts" link (all optional)
+
+A reader on a post page gets an optional breadcrumb back to the post index. A blog that leaves
+`post_back_link` off renders byte-identically to v0.8.0.
+
+| Key | Type | Notes |
+|---|---|---|
+| `post_back_link` | boolean (`false`) | When true, `PostArticle` renders a `.post-back` `<nav aria-label="Breadcrumb">` above the title block (above the language switch and the post-header eyebrow too), linking to the post language's index — `/` for a default-language post, `/<lang>/` for a variant. The arrow is decorative (`aria-hidden`); the text label is the accessible name. Off = no markup, no CSS. |
+| `post_back_label` | text ≤ 40 chars | Overrides the link label. Unset = the label for the post's language: `All posts` (en), `Todas las entradas` (es), `記事一覧` (ja), `Tous les articles` (fr), `Alle Beiträge` (de), `Todos os artigos` (pt); any other language falls back to English (`defaultBackLabel`). |
+
+The link is small and muted (follows `meta_color` via `var(--meta, var(--muted))`), with no
+underline until hover, a ≥ 32px tap target and margin below. It is drawn from surface tokens, so it
+reads on dark and light surfaces alike.
+
+```json
+{
+  "brand_name": "Example Blog",
+  "post_back_link": true,
+  "post_back_label": "Back to the blog"
+}
+```
+
 ### Markdown bodies
 
 `MarkdownBody` covers `#`–`###` headings, paragraphs, `- ` lists, `[text](href)` links, `**bold**`,

@@ -101,6 +101,7 @@ export {
   CONTENT_WIDTH_MIN,
   CONTENT_WIDTH_MAX,
   POST_HEADER_EYEBROW_MAX,
+  POST_BACK_LABEL_MAX,
   POST_META_LAYOUTS,
   DESCRIPTION_STYLES,
   DIVIDER_STYLES,
@@ -211,6 +212,7 @@ export {
   nonDefaultLanguages,
   languagesPresent,
   postsInLanguage,
+  defaultBackLabel,
 } from "./content/languages";
 export type { Direction } from "./content/languages";
 export type { BodyFormat, FaqItem, HreflangAlternate, Post, PostFrontmatter, PostStatus } from "./content/types";

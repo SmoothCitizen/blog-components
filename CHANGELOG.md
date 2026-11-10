@@ -8,6 +8,31 @@ All notable changes to the blog components package. Versions follow
 - **major** — anything a pinned repo must adapt to (a required key, a renamed export,
   a changed file layout, a changed visibility rule).
 
+## [0.9.0] — 2026-11-10
+
+An optional "back to all posts" link on the post page. Minor: one new optional
+theme flag and its label override, no key, prop default or export was removed or
+renamed. A config that leaves `post_back_link` off renders byte-identically to
+v0.8.0 (asserted against the existing `v0_6_1`, `v0_5_0`, `v0_3_1` and `v0_2_0`
+fixtures, all untouched).
+
+- **`post_back_link`** (boolean, default `false`). When true, `PostArticle`
+  renders a `.post-back` breadcrumb `<nav aria-label="Breadcrumb">` above the
+  title block — above the language switch and the post-header eyebrow too — that
+  links to the post language's index: `/` for a default-language post, `/<lang>/`
+  for a variant (the existing `langIndexPath` helper). The decorative arrow sits
+  in an `aria-hidden` span, so the text label carries the accessible name. Off
+  (the default) emits no markup and no CSS.
+- **`post_back_label`** (text ≤ 40 chars, optional). Overrides the link label.
+  Unset, the label is localized by the post's language — "All posts" (en),
+  "Todas las entradas" (es), "記事一覧" (ja), "Tous les articles" (fr),
+  "Alle Beiträge" (de), "Todos os artigos" (pt); any other language falls back
+  to English. New export `defaultBackLabel`.
+- **Styling.** Emitted only when `post_back_link` is on: small, muted (follows
+  `meta_color` via `var(--meta, var(--muted))`), no underline until hover, a
+  ≥ 32px tap target, and margin below. Surface tokens only, so it reads on dark
+  and light surfaces alike.
+
 ## [0.8.0] — 2026-11-10
 
 Three new optional theme colour keys, and a fix that drops the duplicate

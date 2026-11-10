@@ -100,6 +100,22 @@ export function languagesPresent(live: readonly Post[], defaultLang: string): st
   return [defaultLang.trim().toLowerCase(), ...nonDefaultLanguages(live, defaultLang)];
 }
 
+// The default "back to all posts" link label (v0.9.0), localized by the post's
+// base language. A language not in this table — and any blank/unknown tag —
+// falls back to English. Keyed by the base subtag (so "pt-BR" uses "pt").
+const BACK_LABELS: Readonly<Record<string, string>> = {
+  en: "All posts",
+  es: "Todas las entradas",
+  ja: "記事一覧",
+  fr: "Tous les articles",
+  de: "Alle Beiträge",
+  pt: "Todos os artigos",
+};
+
+export function defaultBackLabel(lang: string | null | undefined): string {
+  return BACK_LABELS[baseLang(lang)] ?? BACK_LABELS.en ?? "All posts";
+}
+
 // The live posts in one language (newest-first order is preserved from `live`).
 export function postsInLanguage(
   live: readonly Post[],

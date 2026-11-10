@@ -6,7 +6,7 @@
 
 import type { FaqItem, Post } from "../content/types";
 import { authorBySlug, type Author, type SiteConfig } from "../site/schema";
-import { authorPath, indexPagePath, postPathFor } from "../seo/urls";
+import { authorPath, indexPagePath, langIndexPath, postPathFor } from "../seo/urls";
 import { classer } from "../theme/classes";
 import { postHeaderMode } from "../theme/css";
 import {
@@ -22,7 +22,7 @@ import {
   type ThemeHero,
 } from "../theme/schema";
 import { formatDisplayDate } from "../util";
-import { postLang } from "../content/languages";
+import { defaultBackLabel, postLang } from "../content/languages";
 import { MarkdownBody, resolveBodyFormat } from "../content/markdown";
 import { stripLeadingBodyHeadline } from "../content/html-body";
 import { readingMinutes } from "../content/reading-time";
@@ -462,6 +462,39 @@ export function FaqBlock({
   );
 }
 
+// The optional "back to all posts" breadcrumb above the post title block
+// (v0.9.0 `post_back_link`). Null unless the theme opts in. The href is the
+// post language's INDEX — "/" for the default language, "/<lang>/" for a
+// variant (`langIndexPath`). The label is `post_back_label` if set, else the
+// label for the post's language (English for an unlisted language). The arrow
+// is decorative, so it sits in an `aria-hidden` span and the text label carries
+// the accessible name.
+function PostBackLink({
+  post,
+  site,
+  theme,
+  classPrefix = "",
+}: {
+  post: Post;
+  site: PostListSite;
+  theme?: PostTheme;
+  classPrefix?: string;
+}) {
+  if (!theme?.post_back_link) return null;
+  const c = classer(classPrefix);
+  const lang = postLang(post, site.language);
+  const href = langIndexPath(lang, site.language);
+  const label =
+    typeof theme.post_back_label === "string" && theme.post_back_label ? theme.post_back_label : defaultBackLabel(lang);
+  return (
+    <nav className={c("post-back")} aria-label="Breadcrumb">
+      <a href={href}>
+        <span aria-hidden="true">{"←"}</span> {label}
+      </a>
+    </nav>
+  );
+}
+
 // The post page. When the site runs the sponsor-disclosure layer and this post
 // features a paid brand, the paid-placement callout renders above the byline.
 export function PostArticle({
@@ -524,6 +557,7 @@ export function PostArticle({
   );
   return (
     <article className={c("post")}>
+      <PostBackLink post={post} site={site} theme={theme} classPrefix={classPrefix} />
       {languageSwitch.length > 1 ? (
         <LanguageSwitch entries={languageSwitch} ariaLabel="Read in another language" placement="post" classPrefix={classPrefix} />
       ) : null}

@@ -376,6 +376,19 @@ function optionalCss(theme: ThemeCssInput, surface: ResolvedSurface): string {
     );
   }
 
+  if (theme.post_back_link) {
+    // "Back to all posts" breadcrumb above the post title (v0.9.0). Muted,
+    // following `meta_color` when set (`var(--meta, var(--muted))`), no
+    // underline until hover, a >= 32px tap target, and margin below. Colours
+    // are surface tokens, so it reads on dark and light surfaces alike.
+    parts.push(
+      `/* post back link (v0.9.0) */\n` +
+        `.post-back{margin:0 0 18px}\n` +
+        `.post-back a{display:inline-flex;align-items:center;gap:6px;min-height:32px;color:var(--meta,var(--muted));font-size:14px;text-decoration:none}\n` +
+        `.post-back a:hover{color:var(--meta,var(--muted));text-decoration:underline}`,
+    );
+  }
+
   parts.push(...designKnobCss(theme, surface));
   // v0.8.0 colour roles: [] when none is set. Appended BEFORE the fidelity
   // blocks so a non-accent `divider` (which also restyles `.accent-rule`) still

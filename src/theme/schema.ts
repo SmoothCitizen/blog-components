@@ -328,6 +328,15 @@ export interface ThemeConfig {
   link_color: string | null;
   rule_color: string | null;
   meta_color: string | null;
+  // v0.9.0 — an optional "back to all posts" link above the post title block.
+  //   - `post_back_link`: when true, `PostArticle` renders a `.post-back`
+  //     breadcrumb nav (above the language switch / eyebrow) linking to the
+  //     post language's index, and `themeCss` emits its rule. Absent/false =
+  //     no markup and no CSS, so the page is byte-identical to v0.8.0.
+  //   - `post_back_label`: overrides the default localized label (bounded to
+  //     POST_BACK_LABEL_MAX); null = the label for the post's language.
+  post_back_link: boolean;
+  post_back_label: string | null;
 }
 
 export const LAYOUT_VARIANTS: readonly LayoutVariant[] = ["journal", "grid", "minimal"];
@@ -419,6 +428,8 @@ export const TAGLINE_POSITIONS: readonly TaglinePosition[] = ["inline", "above"]
 export const CONTENT_WIDTH_MIN = 560;
 export const CONTENT_WIDTH_MAX = 1100;
 export const POST_HEADER_EYEBROW_MAX = 40;
+// v0.9.0: the max length of a custom "back to all posts" label.
+export const POST_BACK_LABEL_MAX = 40;
 export const POST_META_LAYOUTS: readonly PostMetaLayout[] = ["classic", "split"];
 export const DESCRIPTION_STYLES: readonly DescriptionStyle[] = ["normal", "italic"];
 export const DIVIDER_STYLES: readonly DividerStyle[] = ["accent", "none", "line", "ticks", "cross"];
@@ -731,6 +742,9 @@ export function parseTheme(raw: unknown): ThemeConfig {
     link_color: hexString(t.link_color),
     rule_color: hexString(t.rule_color),
     meta_color: hexString(t.meta_color),
+    // v0.9.0
+    post_back_link: t.post_back_link === true,
+    post_back_label: boundedText(t.post_back_label, POST_BACK_LABEL_MAX),
   };
 }
 
